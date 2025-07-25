@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Portfolio Dashboard - Overwatch Demo</title>
+    
+    <!-- Meta tags -->
+    <meta name="description" content="Real-time stock portfolio management and AI-powered recommendations">
+    <meta name="keywords" content="stocks, portfolio, dashboard, AI, recommendations">
+    <meta name="author" content="Frontend Team">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="/css/main.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chart.js/4.3.0/chart.min.css">
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="/js/main.js" as="script">
+    <link rel="preload" href="/css/main.css" as="style">
+</head>
+<body>
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner">
+            <i class="fas fa-chart-line fa-spin"></i>
+            <p>Loading Dashboard...</p>
+        </div>
+    </div>
+    
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <i class="fas fa-chart-line"></i>
+                <span>Stock Portfolio Dashboard</span>
+                <span class="demo-badge">Overwatch Demo</span>
+            </div>
+            
+            <div class="nav-menu">
+                <a href="/" class="nav-link active">
+                    <i class="fas fa-tachometer-alt"></i>
+                    Dashboard
+                </a>
+                <a href="/recommendations" class="nav-link">
+                    <i class="fas fa-lightbulb"></i>
+                    Recommendations
+                </a>
+                <a href="/portfolio" class="nav-link">
+                    <i class="fas fa-briefcase"></i>
+                    Portfolio
+                </a>
+            </div>
+            
+            <div class="nav-actions">
+                <button class="btn-icon" id="theme-toggle" title="Toggle Theme">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <button class="btn-icon" id="notifications" title="Notifications">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge" id="notification-count">0</span>
+                </button>
+                <div class="connection-status" id="connection-status">
+                    <i class="fas fa-circle text-success"></i>
+                    <span>Connected</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        <!-- Dashboard Header -->
+        <header class="dashboard-header">
+            <div class="header-content">
+                <h1>Portfolio Dashboard</h1>
+                <p class="header-subtitle">Real-time stock analysis and AI-powered recommendations</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-primary" id="refresh-data">
+                    <i class="fas fa-sync-alt"></i>
+                    Refresh
+                </button>
+                <div class="last-updated">
+                    Last updated: <span id="last-updated-time">--</span>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Key Metrics Cards -->
+        <section class="metrics-grid">
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="fas fa-chart-line text-success"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value" id="total-recommendations">--</h3>
+                    <p class="metric-label">Active Recommendations</p>
+                    <span class="metric-change positive" id="recommendations-change">+0%</span>
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="fas fa-bullseye text-primary"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value" id="avg-confidence">--</h3>
+                    <p class="metric-label">Avg Confidence</p>
+                    <span class="metric-change" id="confidence-change">--</span>
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="fas fa-trending-up text-warning"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value" id="market-sentiment">--</h3>
+                    <p class="metric-label">Market Sentiment</p>
+                    <span class="metric-change" id="sentiment-change">--</span>
+                </div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-icon">
+                    <i class="fas fa-clock text-info"></i>
+                </div>
+                <div class="metric-content">
+                    <h3 class="metric-value" id="api-response-time">--</h3>
+                    <p class="metric-label">API Response Time</p>
+                    <span class="metric-change" id="response-time-change">--</span>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Main Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Top Recommendations Panel -->
+            <section class="panel recommendations-panel">
+                <div class="panel-header">
+                    <h2>
+                        <i class="fas fa-star"></i>
+                        Top Recommendations
+                    </h2>
+                    <div class="panel-actions">
+                        <select id="recommendation-filter" class="select-input">
+                            <option value="">All Types</option>
+                            <option value="BUY">Buy</option>
+                            <option value="SELL">Sell</option>
+                            <option value="HOLD">Hold</option>
+                        </select>
+                        <button class="btn btn-sm btn-outline" id="view-all-recommendations">
+                            View All
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="panel-content">
+                    <div class="recommendations-list" id="recommendations-list">
+                        <!-- Recommendations will be populated by JavaScript -->
+                        <div class="loading-placeholder">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Loading recommendations...</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Market Overview Chart -->
+            <section class="panel chart-panel">
+                <div class="panel-header">
+                    <h2>
+                        <i class="fas fa-chart-area"></i>
+                        Market Overview
+                    </h2>
+                    <div class="panel-actions">
+                        <select id="chart-timeframe" class="select-input">
+                            <option value="1h">1 Hour</option>
+                            <option value="1d" selected>1 Day</option>
+                            <option value="1w">1 Week</option>
+                            <option value="1m">1 Month</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="panel-content">
+                    <div class="chart-container">
+                        <canvas id="market-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Recommendation Distribution -->
+            <section class="panel distribution-panel">
+                <div class="panel-header">
+                    <h2>
+                        <i class="fas fa-pie-chart"></i>
+                        Recommendation Distribution
+                    </h2>
+                </div>
+                
+                <div class="panel-content">
+                    <div class="chart-container chart-small">
+                        <canvas id="distribution-chart"></canvas>
+                    </div>
+                    <div class="distribution-stats" id="distribution-stats">
+                        <!-- Distribution stats will be populated by JavaScript -->
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Trending Stocks -->
+            <section class="panel trending-panel">
+                <div class="panel-header">
+                    <h2>
+                        <i class="fas fa-fire"></i>
+                        Trending Stocks
+                    </h2>
+                    <div class="panel-actions">
+                        <button class="btn btn-sm btn-outline" id="refresh-trending">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="panel-content">
+                    <div class="trending-list" id="trending-list">
+                        <!-- Trending stocks will be populated by JavaScript -->
+                        <div class="loading-placeholder">
+                            <i class="fas fa-spinner fa-spin"></i>
+                            <span>Loading trending stocks...</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- System Status -->
+            <section class="panel status-panel">
+                <div class="panel-header">
+                    <h2>
+                        <i class="fas fa-server"></i>
+                        System Status
+                    </h2>
+                </div>
+                
+                <div class="panel-content">
+                    <div class="status-grid">
+                        <div class="status-item">
+                            <div class="status-indicator" id="api-status">
+                                <i class="fas fa-circle"></i>
+                            </div>
+                            <div class="status-details">
+                                <h4>Stock Analytics API</h4>
+                                <p id="api-status-text">Checking...</p>
+                            </div>
+                        </div>
+                        
+                        <div class="status-item">
+                            <div class="status-indicator" id="cache-status">
+                                <i class="fas fa-circle"></i>
+                            </div>
+                            <div class="status-details">
+                                <h4>Cache System</h4>
+                                <p id="cache-status-text">Checking...</p>
+                            </div>
+                        </div>
+                        
+                        <div class="status-item">
+                            <div class="status-indicator" id="websocket-status">
+                                <i class="fas fa-circle"></i>
+                            </div>
+                            <div class="status-details">
+                                <h4>Real-time Updates</h4>
+                                <p id="websocket-status-text">Checking...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+    
+    <!-- Modals -->
+    
+    <!-- Stock Detail Modal -->
+    <div class="modal-overlay" id="stock-modal-overlay">
+        <div class="modal stock-modal">
+            <div class="modal-header">
+                <h2 id="stock-modal-title">Stock Details</h2>
+                <button class="btn-close" id="close-stock-modal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="modal-body" id="stock-modal-body">
+                <!-- Stock details will be populated by JavaScript -->
+            </div>
+            
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="add-to-portfolio">
+                    <i class="fas fa-plus"></i>
+                    Add to Portfolio
+                </button>
+                <button class="btn btn-primary" id="view-stock-history">
+                    <i class="fas fa-history"></i>
+                    View History
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification Toast Container -->
+    <div class="toast-container" id="toast-container">
+        <!-- Toasts will be dynamically added here -->
+    </div>
+    
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/4.3.0/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/2.30.0/index.min.js"></script>
+    <script src="/js/utils.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/charts.js"></script>
+    <script src="/js/components.js"></script>
+    <script src="/js/main.js"></script>
+    
+    <!-- Analytics and Monitoring -->
+    <script>
+        // Basic performance monitoring
+        window.addEventListener('load', function() {
+            if ('performance' in window) {
+                const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
+                console.log('Page load time:', loadTime, 'ms');
+                
+                // Send to monitoring service
+                if (window.sendMetric) {
+                    window.sendMetric('page_load_time', loadTime);
+                }
+            }
+        });
+        
+        // Error tracking
+        window.addEventListener('error', function(event) {
+            console.error('JavaScript error:', event.error);
+            
+            // Send to monitoring service
+            if (window.sendError) {
+                window.sendError({
+                    message: event.message,
+                    filename: event.filename,
+                    lineno: event.lineno,
+                    colno: event.colno,
+                    error: event.error
+                });
+            }
+        });
+    </script>
+</body>
+</html>
