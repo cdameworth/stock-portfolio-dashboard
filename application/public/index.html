@@ -15,9 +15,10 @@
     
     <!-- CSS -->
     <link rel="stylesheet" href="/css/main.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chart.js/4.3.0/chart.min.css">
-    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+
+
     <!-- Preload critical resources -->
     <link rel="preload" href="/js/main.js" as="script">
     <link rel="preload" href="/css/main.css" as="style">
@@ -319,8 +320,8 @@
     </div>
     
     <!-- Scripts -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chart.js/4.3.0/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/2.30.0/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/dist/date-fns.min.js"></script>
     <script src="/js/utils.js"></script>
     <script src="/js/api.js"></script>
     <script src="/js/charts.js"></script>
@@ -332,9 +333,8 @@
         // Basic performance monitoring
         window.addEventListener('load', function() {
             if ('performance' in window) {
-                const loadTime = performance.timing.loadEventEnd - performance.timing.navigationStart;
-                console.log('Page load time:', loadTime, 'ms');
-                
+                const nav = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]);
+                const loadTime = nav ? nav.loadEventEnd : performance.now();
                 // Send to monitoring service
                 if (window.sendMetric) {
                     window.sendMetric('page_load_time', loadTime);

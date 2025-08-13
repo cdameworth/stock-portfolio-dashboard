@@ -2,12 +2,16 @@
 FROM node:18-alpine
 
 WORKDIR /app
-
+RUN apk add --no-cache curl
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+# RUN npm ci --only=production && npm cache clean --force
+RUN if [ -f package-lock.json ]; then \
+      echo "Lockfile found -> npm ci"; npm ci --omit=dev; \
+    else \
+      echo "No lockfile -> npm install"; npm install --omit=dev; \
+    fi && npm cache clean --force
 
 # Copy application code
 COPY . .

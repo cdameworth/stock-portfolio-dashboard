@@ -1,0 +1,11 @@
+*.tfvars
+*.tfstate
+*.tfstate.backup
+*.old
+.terraform/
+
+package-lock.json
+node_modules/
+application/node_modules/
+application/package-lock.json
+application/dist/

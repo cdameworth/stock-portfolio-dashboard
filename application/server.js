@@ -9,9 +9,6 @@ const helmet = require('helmet');
 const cors = require('cors');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
-const session = require('express-session');
-const RedisStore = require('connect-redis').default;
-const redis = require('redis');
 const morgan = require('morgan');
 const winston = require('winston');
 const expressWinston = require('express-winston');
@@ -25,6 +22,10 @@ const MetricsService = require('./services/metrics-service');
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const IS_PROD = (process.env.NODE_ENV || '').toLowerCase() === 'production';
+
+app.set('trust proxy', 1);
 
 // Configure logging
 const logger = winston.createLogger({
@@ -44,33 +45,12 @@ const logger = winston.createLogger({
   ]
 });
 
-// Initialize Redis client for sessions and caching
-let redisClient;
-if (process.env.REDIS_ENDPOINT) {
-  redisClient = redis.createClient({
-    socket: {
-      host: process.env.REDIS_ENDPOINT,
-      port: 6379
-    }
-  });
-  
-  redisClient.on('error', (err) => {
-    logger.error('Redis Client Error:', err);
-  });
-  
-  redisClient.connect().catch((err) => {
-    logger.error('Failed to connect to Redis:', err);
-  });
-}
-
 // Initialize services
 const stockService = new StockService({
-  apiUrl: process.env.STOCK_ANALYTICS_API_URL,
-  redisClient: redisClient
+  apiUrl: process.env.STOCK_ANALYTICS_API_URL
 });
 
 const portfolioService = new PortfolioService({
-  redisClient: redisClient,
   dbConfig: {
     host: process.env.DB_HOST,
     port: process.env.DB_PORT || 5432,
@@ -87,24 +67,29 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-      scriptSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
       imgSrc: ["'self'", "data:", "https:"],
       connectSrc: ["'self'"],
-      fontSrc: ["'self'", "https://cdnjs.cloudflare.com"],
+      fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
       frameSrc: ["'none'"]
     }
-  }
+  },
+  // Suppress COOP warning in non-secure contexts (dev). For prod HTTPS, you can enable defaults.
+  crossOriginOpenerPolicy: IS_PROD ? { policy: "same-origin" } : false,
+  crossOriginEmbedderPolicy: IS_PROD ? true : false,
+  hsts: IS_PROD ? undefined : false
 }));
 
-// CORS configuration
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
-  credentials: true
-}));
-
+// In non-secure contexts, explicitly opt-out of Origin-Agent-Cluster to avoid mixed clustering
+if (!IS_PROD) {
+  app.use((req, res, next) => {
+    res.setHeader('Origin-Agent-Cluster', '?0');
+    next();
+  });
+}
 // Compression
 app.use(compression());
 
@@ -123,20 +108,6 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Session configuration
-if (redisClient) {
-  app.use(session({
-    store: new RedisStore({ client: redisClient }),
-    secret: process.env.SESSION_SECRET || 'your-secret-key',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: process.env.NODE_ENV === 'production',
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
-  }));
-}
-
 // Request logging
 app.use(expressWinston.logger({
   winstonInstance: logger,
@@ -163,12 +134,10 @@ app.get('/health', (req, res) => {
     uptime: process.uptime(),
     memory: process.memoryUsage(),
     services: {
-      redis: redisClient?.isReady || false,
       stockApi: 'unknown', // Would need to implement health check
       database: 'unknown'  // Would need to implement health check
     }
   };
-  
   res.json(health);
 });
 
@@ -326,22 +295,35 @@ app.get('/api/stream/recommendations', (req, res) => {
   metricsService.incrementCounter('sse_connections_total');
 });
 
+app.get('/recommendations', async (req, res, next) => {
+  try {
+    // If the client wants HTML, serve the SPA
+    if (req.accepts(['html', 'json']) === 'html') {
+      return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    }
+
+    // Otherwise serve JSON (alias to /api/recommendations)
+    const { type, risk, limit, min_confidence } = req.query;
+    const data = await stockService.getRecommendations({
+      type,
+      risk,
+      limit: parseInt(limit) || 10,
+      min_confidence: parseFloat(min_confidence) || 0
+    });
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Serve the main dashboard page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Serve dashboard pages
-app.get('/dashboard', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
-});
-
-app.get('/portfolio', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'portfolio.html'));
-});
-
-app.get('/recommendations', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'recommendations.html'));
+app.get(['/dashboard', '/portfolio'], (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Error handling middleware
@@ -366,21 +348,11 @@ app.use((req, res) => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
-  
-  if (redisClient) {
-    await redisClient.quit();
-  }
-  
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
-  
-  if (redisClient) {
-    await redisClient.quit();
-  }
-  
   process.exit(0);
 });
 

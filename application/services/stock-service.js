@@ -17,7 +17,6 @@ const logger = winston.createLogger({
 class StockService {
   constructor(options = {}) {
     this.apiUrl = options.apiUrl || process.env.STOCK_ANALYTICS_API_URL;
-    this.redisClient = options.redisClient;
     this.timeout = options.timeout || 30000;
     
     // Configure axios instance
@@ -77,20 +76,8 @@ class StockService {
         min_confidence = 0
       } = options;
       
-      // Check cache first
-      const cacheKey = `recommendations:${type || 'all'}:${risk || 'all'}:${limit}:${min_confidence}`;
-      const cachedData = await this.getFromCache(cacheKey);
-      
-      if (cachedData) {
-        logger.info('Returning cached recommendations');
-        return JSON.parse(cachedData);
-      }
-      
       // Build query parameters
-      const params = {
-        limit: limit
-      };
-      
+      const params = { limit };
       if (type) params.type = type;
       if (risk) params.risk = risk;
       if (min_confidence > 0) params.min_confidence = min_confidence;
@@ -104,10 +91,7 @@ class StockService {
         cached: false,
         retrieved_at: new Date().toISOString()
       };
-      
-      // Cache the response
-      await this.cacheData(cacheKey, JSON.stringify(data), 300); // 5 minutes
-      
+     
       logger.info(`Retrieved ${data.recommendations?.length || 0} recommendations from API`);
       return data;
       
@@ -126,15 +110,6 @@ class StockService {
     try {
       const { include_history = false } = options;
       
-      // Check cache first
-      const cacheKey = `recommendation:${symbol}:${include_history}`;
-      const cachedData = await this.getFromCache(cacheKey);
-      
-      if (cachedData) {
-        logger.info(`Returning cached recommendation for ${symbol}`);
-        return JSON.parse(cachedData);
-      }
-      
       // Build query parameters
       const params = {};
       if (include_history) params.include_history = 'true';
@@ -148,9 +123,6 @@ class StockService {
         cached: false,
         retrieved_at: new Date().toISOString()
       };
-      
-      // Cache the response
-      await this.cacheData(cacheKey, JSON.stringify(data), 180); // 3 minutes
       
       logger.info(`Retrieved recommendation for ${symbol} from API`);
       return data;
@@ -278,41 +250,7 @@ class StockService {
     }
   }
   
-  /**
-   * Get data from Redis cache
-   */
-  async getFromCache(key) {
-    try {
-      if (!this.redisClient || !this.redisClient.isReady) {
-        return null;
-      }
-      
-      return await this.redisClient.get(key);
-    } catch (error) {
-      logger.error('Cache get error:', error);
-      return null;
-    }
-  }
-  
-  /**
-   * Store data in Redis cache
-   */
-  async cacheData(key, data, ttlSeconds = 300) {
-    try {
-      if (!this.redisClient || !this.redisClient.isReady) {
-        return false;
-      }
-      
-      await this.redisClient.setEx(key, ttlSeconds, data);
-      return true;
-    } catch (error) {
-      logger.error('Cache set error:', error);
-      return false;
-    }
-  }
-  
-  /**
-   * Fallback recommendations when API is unavailable
+   /* Fallback recommendations when API is unavailable
    */
   getFallbackRecommendations(options = {}) {
     logger.warn('Using fallback recommendations due to API unavailability');
