@@ -176,6 +176,18 @@ class DashboardApp {
             }
         });
         
+        // Info icon tooltip interactions
+        document.addEventListener('click', (e) => {
+            if (e.target.matches('.info-icon') || e.target.closest('.info-icon')) {
+                const icon = e.target.matches('.info-icon') ? e.target : e.target.closest('.info-icon');
+                const tooltip = icon.getAttribute('title');
+                if (tooltip) {
+                    // Show tooltip as alert for now - could be enhanced with proper tooltip
+                    alert(tooltip);
+                }
+            }
+        });
+        
         // Portfolio form
         const portfolioForm = document.getElementById('createPortfolioForm');
         if (portfolioForm) {
@@ -798,7 +810,7 @@ class DashboardApp {
         
         // Load market overview data
         await this.loadMarketOverview();
-            this.loadMarketInsights();
+        await this.loadMarketInsights();
     }
     
     async loadMarketOverview() {
