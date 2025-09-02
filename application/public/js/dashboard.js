@@ -1024,8 +1024,7 @@ class DashboardApp {
             }
         }
     }
-    }
-    
+
     async createPortfolio() {
         const form = document.getElementById('createPortfolioForm');
         const submitButton = form.querySelector('button[type="submit"]');

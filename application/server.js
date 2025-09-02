@@ -123,7 +123,7 @@ app.use(helmet({
       fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com", "https://fonts.gstatic.com"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'self'", "https://googleads.g.doubleclick.net", "https://tpc.googlesyndication.com"]
+      frameSrc: ["'self'", "https://googleads.g.doubleclick.net", "https://tpc.googlesyndication.com", "https://ep2.adtrafficquality.google", "https://www.google.com", "https://*.google.com"]
     }
   },
   // Suppress COOP warning in non-secure contexts (dev). For prod HTTPS, you can enable defaults.
