@@ -395,23 +395,30 @@ body {
 }
 
 .metric-card {
-    background: #1a202c;
-    padding: 20px;
+    background: white;
+    padding: 25px;
     border-radius: 12px;
     text-align: center;
-    border: 1px solid #2d3748;
+    border: 1px solid #e1e8ed;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .metric-value {
     font-size: 2rem;
     font-weight: bold;
-    color: #3b82f6;
+    color: #1f2937;
     margin-bottom: 8px;
 }
 
 .metric-label {
-    color: #9ca3af;
+    color: #6b7280;
     font-size: 0.9rem;
+    font-weight: 500;
 }
 
 .modal {
