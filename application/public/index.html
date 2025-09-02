@@ -3,280 +3,595 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Portfolio Dashboard - Overwatch Demo</title>
+    <meta name="google-adsense-account" content="ca-pub-8872632698562518">
+    <title>Stock Portfolio Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/header-additions.css">
+    <link rel="stylesheet" href="css/enhanced-components.css">
+    <link rel="stylesheet" href="css/account-management.css">
     
-    <!-- Meta tags -->
-    <meta name="description" content="Real-time stock portfolio management and AI-powered recommendations">
-    <meta name="keywords" content="stocks, portfolio, dashboard, AI, recommendations">
-    <meta name="author" content="Frontend Team">
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    
-    <!-- CSS -->
-    <link rel="stylesheet" href="/css/main.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
-
-
-    <!-- Preload critical resources -->
-    <link rel="preload" href="/js/main.js" as="script">
-    <link rel="preload" href="/css/main.css" as="style">
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8872632698562518"
+         crossorigin="anonymous"></script>
 </head>
 <body>
-    <!-- Loading overlay -->
-    <div id="loading-overlay" class="loading-overlay">
-        <div class="loading-spinner">
-            <i class="fas fa-chart-line fa-spin"></i>
-            <p>Loading Dashboard...</p>
-        </div>
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-spinner"></div>
+        <p>Loading your dashboard...</p>
     </div>
-    
-    <!-- Navigation -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="nav-brand">
-                <i class="fas fa-chart-line"></i>
-                <span>Stock Portfolio Dashboard</span>
-                <span class="demo-badge">Overwatch Demo</span>
-            </div>
-            
-            <div class="nav-menu">
-                <a href="/" class="nav-link active">
-                    <i class="fas fa-tachometer-alt"></i>
-                    Dashboard
-                </a>
-                <a href="/recommendations" class="nav-link">
-                    <i class="fas fa-lightbulb"></i>
-                    Recommendations
-                </a>
-                <a href="/portfolio" class="nav-link">
-                    <i class="fas fa-briefcase"></i>
-                    Portfolio
-                </a>
-            </div>
-            
-            <div class="nav-actions">
-                <button class="btn-icon" id="theme-toggle" title="Toggle Theme">
-                    <i class="fas fa-moon"></i>
-                </button>
-                <button class="btn-icon" id="notifications" title="Notifications">
-                    <i class="fas fa-bell"></i>
-                    <span class="notification-badge" id="notification-count">0</span>
-                </button>
-                <div class="connection-status" id="connection-status">
-                    <i class="fas fa-circle text-success"></i>
-                    <span>Connected</span>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h2>📈 Stock Portfolio Pro</h2>
+            <p class="tagline">Beat the Market</p>
+        </div>
+        <ul class="nav-menu">
+            <li><a href="#dashboard" class="nav-link active" data-section="dashboard">
+                <span class="nav-icon">📊</span>
+                Dashboard
+            </a></li>
+            <li><a href="#recommendations" class="nav-link" data-section="recommendations">
+                <span class="nav-icon">🤖</span>
+                AI Recommendations
+            </a></li>
+            <li><a href="#portfolios" class="nav-link" data-section="portfolios">
+                <span class="nav-icon">💼</span>
+                My Portfolios
+            </a></li>
+            <li><a href="#performance" class="nav-link" data-section="performance">
+                <span class="nav-icon">📈</span>
+                Performance
+            </a></li>
+            <li><a href="#account" class="nav-link" data-section="account">
+                <span class="nav-icon">👤</span>
+                Account
+            </a></li>
+        </ul>
+        
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar">
+                    <span id="userInitials">U</span>
+                </div>
+                <div class="user-details">
+                    <span id="userName">User</span>
+                    <span id="userPlan" class="user-plan">Free</span>
                 </div>
             </div>
+            <button id="logoutBtn" class="btn btn-logout">Logout</button>
         </div>
     </nav>
-    
-    <!-- Main Content -->
+
     <main class="main-content">
-        <!-- Dashboard Header -->
-        <header class="dashboard-header">
-            <div class="header-content">
-                <h1>Portfolio Dashboard</h1>
-                <p class="header-subtitle">Real-time stock analysis and AI-powered recommendations</p>
+        <header class="header">
+            <div class="header-title">
+                <h1 id="pageTitle">Dashboard</h1>
+                <p id="pageSubtitle">Welcome back! Here's your market overview.</p>
             </div>
             <div class="header-actions">
-                <button class="btn btn-primary" id="refresh-data">
-                    <i class="fas fa-sync-alt"></i>
-                    Refresh
+                <button class="btn btn-primary" id="refreshBtn">
+                    <span class="btn-icon">🔄</span>
+                    Refresh Data
                 </button>
-                <div class="last-updated">
-                    Last updated: <span id="last-updated-time">--</span>
-                </div>
             </div>
         </header>
-        
-        <!-- Key Metrics Cards -->
-        <section class="metrics-grid">
-            <div class="metric-card">
-                <div class="metric-icon">
-                    <i class="fas fa-chart-line text-success"></i>
+
+        <div class="content-area">
+            <!-- Dashboard Section -->
+            <section id="dashboard-section" class="content-section active">
+                <div class="dashboard-grid">
+                    <!-- Key Metrics -->
+                    <div class="metrics-row">
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <span class="metric-title">Total Portfolio Value</span>
+                                <span class="metric-icon">💰</span>
+                            </div>
+                            <div class="metric-value" id="totalValue">$0.00</div>
+                            <div class="metric-change" id="totalChange">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <span class="metric-title">Today's Change</span>
+                                <span class="metric-icon">📈</span>
+                            </div>
+                            <div class="metric-value" id="todayChange">$0.00</div>
+                            <div class="metric-change" id="todayPercent">--</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-header">
+                                <span class="metric-title">Active Positions</span>
+                                <span class="metric-icon">📊</span>
+                            </div>
+                            <div class="metric-value" id="activePositions">0</div>
+                            <div class="metric-change">Portfolios</div>
+                        </div>
+                    </div>
+
+                    <!-- Recent Recommendations -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Latest AI Recommendations</h3>
+                            <span class="live-indicator">🟢 Live</span>
+                        </div>
+                        <div class="card-content">
+                            <div id="recentRecommendations" class="recommendations-list">
+                                <div class="loading-placeholder">Loading recommendations...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Market Overview -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Market Overview</h3>
+                            <small>Real-time market data</small>
+                        </div>
+                        <div class="card-content">
+                            <div id="marketOverview" class="market-grid">
+                                <!-- Market data will be populated here -->
+                            </div>
+                        </div>
+
+                    <!-- Market Insights Section -->
+                    <div class="card dashboard-insights">
+                        <div class="card-header">
+                            <h3>Market Insights</h3>
+                            <small>AI-powered market analysis</small>
+                        </div>
+                        <div class="card-content">
+                            <div class="insights-content">
+                                <div class="loading-placeholder">Loading insights...</div>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                    <!-- Market Insights Section -->
+                    <div class="card dashboard-insights">
+                        <div class="card-header">
+                            <h3>Market Insights</h3>
+                            <small>AI-powered market analysis</small>
+                        </div>
+                        <div class="card-content">
+                            <div class="insights-content">
+                                <div class="loading-placeholder">Loading insights...</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div class="metric-content">
-                    <h3 class="metric-value" id="total-recommendations">--</h3>
-                    <p class="metric-label">Active Recommendations</p>
-                    <span class="metric-change positive" id="recommendations-change">+0%</span>
-                </div>
-            </div>
-            
-            <div class="metric-card">
-                <div class="metric-icon">
-                    <i class="fas fa-bullseye text-primary"></i>
-                </div>
-                <div class="metric-content">
-                    <h3 class="metric-value" id="avg-confidence">--</h3>
-                    <p class="metric-label">Avg Confidence</p>
-                    <span class="metric-change" id="confidence-change">--</span>
-                </div>
-            </div>
-            
-            <div class="metric-card">
-                <div class="metric-icon">
-                    <i class="fas fa-trending-up text-warning"></i>
-                </div>
-                <div class="metric-content">
-                    <h3 class="metric-value" id="market-sentiment">--</h3>
-                    <p class="metric-label">Market Sentiment</p>
-                    <span class="metric-change" id="sentiment-change">--</span>
-                </div>
-            </div>
-            
-            <div class="metric-card">
-                <div class="metric-icon">
-                    <i class="fas fa-clock text-info"></i>
-                </div>
-                <div class="metric-content">
-                    <h3 class="metric-value" id="api-response-time">--</h3>
-                    <p class="metric-label">API Response Time</p>
-                    <span class="metric-change" id="response-time-change">--</span>
-                </div>
-            </div>
-        </section>
-        
-        <!-- Main Dashboard Grid -->
-        <div class="dashboard-grid">
-            <!-- Top Recommendations Panel -->
-            <section class="panel recommendations-panel">
-                <div class="panel-header">
-                    <h2>
-                        <i class="fas fa-star"></i>
-                        Top Recommendations
-                    </h2>
-                    <div class="panel-actions">
-                        <select id="recommendation-filter" class="select-input">
+            </section>
+
+            <!-- Recommendations Section -->
+            <section id="recommendations-section" class="content-section">
+                <div class="recommendations-header">
+                    <div class="search-controls">
+                        <input type="text" id="symbolSearch" class="form-control" placeholder="Search by symbol (e.g., AAPL, TSLA)" />
+                        <button class="btn btn-primary" id="searchBtn">
+                            <span class="btn-icon">🔍</span>
+                            Search
+                        </button>
+                    </div>
+                    <div class="filter-controls">
+                        <select id="riskFilter" class="form-select">
+                            <option value="">All Risk Levels</option>
+                            <option value="LOW">Low Risk</option>
+                            <option value="MEDIUM">Medium Risk</option>
+                            <option value="HIGH">High Risk</option>
+                        </select>
+                        <select id="typeFilter" class="form-select">
                             <option value="">All Types</option>
                             <option value="BUY">Buy</option>
                             <option value="SELL">Sell</option>
                             <option value="HOLD">Hold</option>
                         </select>
-                        <button class="btn btn-sm btn-outline" id="view-all-recommendations">
-                            View All
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="panel-content">
-                    <div class="recommendations-list" id="recommendations-list">
-                        <!-- Recommendations will be populated by JavaScript -->
-                        <div class="loading-placeholder">
-                            <i class="fas fa-spinner fa-spin"></i>
-                            <span>Loading recommendations...</span>
-                        </div>
-                    </div>
-                </div>
-            </section>
-            
-            <!-- Market Overview Chart -->
-            <section class="panel chart-panel">
-                <div class="panel-header">
-                    <h2>
-                        <i class="fas fa-chart-area"></i>
-                        Market Overview
-                    </h2>
-                    <div class="panel-actions">
-                        <select id="chart-timeframe" class="select-input">
-                            <option value="1h">1 Hour</option>
-                            <option value="1d" selected>1 Day</option>
-                            <option value="1w">1 Week</option>
-                            <option value="1m">1 Month</option>
+                        <select id="sortFilter" class="form-select">
+                            <option value="confidence">Sort by Confidence</option>
+                            <option value="projected_gain">Sort by Projected Gain</option>
+                            <option value="symbol">Sort by Symbol</option>
+                            <option value="date">Sort by Date</option>
                         </select>
                     </div>
                 </div>
                 
-                <div class="panel-content">
-                    <div class="chart-container">
-                        <canvas id="market-chart"></canvas>
+                <div class="recommendations-stats">
+                    <div class="stat-card">
+                        <div class="stat-label">Total Recommendations</div>
+                        <div class="stat-value" id="totalRecsCount">-</div>
                     </div>
-                </div>
-            </section>
-            
-            <!-- Recommendation Distribution -->
-            <section class="panel distribution-panel">
-                <div class="panel-header">
-                    <h2>
-                        <i class="fas fa-pie-chart"></i>
-                        Recommendation Distribution
-                    </h2>
-                </div>
-                
-                <div class="panel-content">
-                    <div class="chart-container chart-small">
-                        <canvas id="distribution-chart"></canvas>
+                    <div class="stat-card">
+                        <div class="stat-label">Avg. Confidence</div>
+                        <div class="stat-value" id="avgConfidence">-</div>
                     </div>
-                    <div class="distribution-stats" id="distribution-stats">
-                        <!-- Distribution stats will be populated by JavaScript -->
-                    </div>
-                </div>
-            </section>
-            
-            <!-- Trending Stocks -->
-            <section class="panel trending-panel">
-                <div class="panel-header">
-                    <h2>
-                        <i class="fas fa-fire"></i>
-                        Trending Stocks
-                    </h2>
-                    <div class="panel-actions">
-                        <button class="btn btn-sm btn-outline" id="refresh-trending">
-                            <i class="fas fa-sync-alt"></i>
-                        </button>
+                    <div class="stat-card">
+                        <div class="stat-label">Avg. Projected Gain</div>
+                        <div class="stat-value" id="avgProjectedGain">-</div>
                     </div>
                 </div>
                 
-                <div class="panel-content">
-                    <div class="trending-list" id="trending-list">
-                        <!-- Trending stocks will be populated by JavaScript -->
-                        <div class="loading-placeholder">
-                            <i class="fas fa-spinner fa-spin"></i>
-                            <span>Loading trending stocks...</span>
-                        </div>
-                    </div>
+                <div id="recommendationsGrid" class="recommendations-grid">
+                    <div class="loading-placeholder">Loading AI recommendations...</div>
                 </div>
             </section>
-            
-            <!-- System Status -->
-            <section class="panel status-panel">
-                <div class="panel-header">
-                    <h2>
-                        <i class="fas fa-server"></i>
-                        System Status
-                    </h2>
+
+            <!-- Portfolios Section -->
+            <section id="portfolios-section" class="content-section">
+                <div class="portfolios-header">
+                    <button class="btn btn-primary" id="createPortfolioBtn">
+                        <span class="btn-icon">➕</span>
+                        Create New Portfolio
+                    </button>
+                    <div class="portfolio-actions">
+                        <select id="portfolioSort" class="form-select">
+                            <option value="name">Sort by Name</option>
+                            <option value="value">Sort by Value</option>
+                            <option value="performance">Sort by Performance</option>
+                            <option value="created">Sort by Date Created</option>
+                        </select>
+                    </div>
                 </div>
                 
-                <div class="panel-content">
-                    <div class="status-grid">
-                        <div class="status-item">
-                            <div class="status-indicator" id="api-status">
-                                <i class="fas fa-circle"></i>
+                <div class="portfolios-summary">
+                    <div class="summary-card">
+                        <div class="summary-label">Total Portfolio Value</div>
+                        <div class="summary-value" id="totalPortfolioValue">$0.00</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">Total Portfolios</div>
+                        <div class="summary-value" id="totalPortfolios">0</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">Best Performer</div>
+                        <div class="summary-value" id="bestPerformer">-</div>
+                    </div>
+                    <div class="summary-card">
+                        <div class="summary-label">Total Return</div>
+                        <div class="summary-value" id="totalReturn">0%</div>
+                    </div>
+                </div>
+                
+                <div id="portfoliosList" class="portfolios-grid">
+                    <div class="loading-placeholder">Loading your portfolios...</div>
+                </div>
+            </section>
+
+            <!-- Performance Section -->
+            <section id="performance-section" class="content-section">
+                <div class="performance-tabs">
+                    <button class="tab-btn active" data-tab="user-performance">My Performance</button>
+                    <button class="tab-btn" data-tab="ai-performance">AI Analytics Performance</button>
+                    <button class="tab-btn" data-tab="comparison">Comparison</button>
+                </div>
+
+                <div id="user-performance" class="tab-content active">
+                    <div class="performance-cards">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Portfolio Performance</h3>
+                                <select id="performancePeriod" class="form-select">
+                                    <option value="1M">1 Month</option>
+                                    <option value="3M">3 Months</option>
+                                    <option value="6M">6 Months</option>
+                                    <option value="1Y">1 Year</option>
+                                </select>
                             </div>
-                            <div class="status-details">
-                                <h4>Stock Analytics API</h4>
-                                <p id="api-status-text">Checking...</p>
+                            <div class="card-content">
+                                <div id="performanceChart" class="chart-placeholder">
+                                    <div class="performance-metrics">
+                                        <div class="perf-metric">
+                                            <div class="perf-label">Total Return</div>
+                                            <div class="perf-value positive" id="userTotalReturn">+12.5%</div>
+                                        </div>
+                                        <div class="perf-metric">
+                                            <div class="perf-label">Annual Return</div>
+                                            <div class="perf-value positive" id="userAnnualReturn">+15.2%</div>
+                                        </div>
+                                        <div class="perf-metric">
+                                            <div class="perf-label">Best Position</div>
+                                            <div class="perf-value" id="bestPosition">AAPL (+45%)</div>
+                                        </div>
+                                        <div class="perf-metric">
+                                            <div class="perf-label">Worst Position</div>
+                                            <div class="perf-value negative" id="worstPosition">META (-12%)</div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
-                        <div class="status-item">
-                            <div class="status-indicator" id="cache-status">
-                                <i class="fas fa-circle"></i>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Beat the Market Analysis</h3>
                             </div>
-                            <div class="status-details">
-                                <h4>Cache System</h4>
-                                <p id="cache-status-text">Checking...</p>
+                            <div class="card-content">
+                                <div id="marketBeatAnalysis">
+                                    <div class="beat-metric">
+                                        <span class="beat-label">Your Return</span>
+                                        <span class="beat-value positive" id="yourReturn">+12.5%</span>
+                                    </div>
+                                    <div class="beat-metric">
+                                        <span class="beat-label">S&P 500</span>
+                                        <span class="beat-value" id="marketReturn">+8.2%</span>
+                                    </div>
+                                    <div class="beat-metric highlight">
+                                        <span class="beat-label">Outperformance</span>
+                                        <span class="beat-value positive" id="outperformance">+4.3%</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        
-                        <div class="status-item">
-                            <div class="status-indicator" id="websocket-status">
-                                <i class="fas fa-circle"></i>
+                    </div>
+                </div>
+
+                <div id="ai-performance" class="tab-content">
+                    <div class="performance-cards">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>AI Recommendation Performance</h3>
+                                <select id="aiPeriod" class="form-select">
+                                    <option value="1M">1 Month</option>
+                                    <option value="3M">3 Months</option>
+                                    <option value="6M">6 Months</option>
+                                    <option value="1Y">1 Year</option>
+                                </select>
                             </div>
-                            <div class="status-details">
-                                <h4>Real-time Updates</h4>
-                                <p id="websocket-status-text">Checking...</p>
+                            <div class="card-content">
+                                <div class="ai-performance-grid">
+                                    <div class="ai-metric">
+                                        <div class="ai-label">Success Rate</div>
+                                        <div class="ai-value" id="aiSuccessRate">78%</div>
+                                        <div class="ai-desc">Profitable recommendations</div>
+                                    </div>
+                                    <div class="ai-metric">
+                                        <div class="ai-label">Avg. Gain</div>
+                                        <div class="ai-value positive" id="aiAvgGain">+14.2%</div>
+                                        <div class="ai-desc">Average return on wins</div>
+                                    </div>
+                                    <div class="ai-metric">
+                                        <div class="ai-label">Total Recommendations</div>
+                                        <div class="ai-value" id="aiTotalRecs">156</div>
+                                        <div class="ai-desc">Recommendations issued</div>
+                                    </div>
+                                    <div class="ai-metric">
+                                        <div class="ai-label">Confidence Accuracy</div>
+                                        <div class="ai-value" id="aiConfidenceAccuracy">82%</div>
+                                        <div class="ai-desc">High confidence winners</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>AI vs Market Benchmarks</h3>
+                            </div>
+                            <div class="card-content">
+                                <div id="aiBenchmarkAnalysis">
+                                    <div class="benchmark-metric">
+                                        <span class="benchmark-label">AI Recommendations</span>
+                                        <span class="benchmark-value positive" id="aiReturn">+18.7%</span>
+                                    </div>
+                                    <div class="benchmark-metric">
+                                        <span class="benchmark-label">S&P 500</span>
+                                        <span class="benchmark-value" id="sp500Return">+8.2%</span>
+                                    </div>
+                                    <div class="benchmark-metric">
+                                        <span class="benchmark-label">NASDAQ</span>
+                                        <span class="benchmark-value" id="nasdaqReturn">+12.1%</span>
+                                    </div>
+                                    <div class="benchmark-metric highlight">
+                                        <span class="benchmark-label">AI Alpha</span>
+                                        <span class="benchmark-value positive" id="aiAlpha">+6.6%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="comparison" class="tab-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Performance Comparison: You vs AI Recommendations</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="comparison-grid">
+                                <div class="comparison-section">
+                                    <h4>Your Portfolio</h4>
+                                    <div class="comparison-stats">
+                                        <div class="comp-stat">
+                                            <span>Total Return</span>
+                                            <span class="positive">+12.5%</span>
+                                        </div>
+                                        <div class="comp-stat">
+                                            <span>Sharpe Ratio</span>
+                                            <span>1.24</span>
+                                        </div>
+                                        <div class="comp-stat">
+                                            <span>Max Drawdown</span>
+                                            <span class="negative">-8.3%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="comparison-section">
+                                    <h4>Following AI 100%</h4>
+                                    <div class="comparison-stats">
+                                        <div class="comp-stat">
+                                            <span>Theoretical Return</span>
+                                            <span class="positive">+18.7%</span>
+                                        </div>
+                                        <div class="comp-stat">
+                                            <span>Sharpe Ratio</span>
+                                            <span>1.67</span>
+                                        </div>
+                                        <div class="comp-stat">
+                                            <span>Max Drawdown</span>
+                                            <span class="negative">-6.1%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="value-proposition">
+                                <h4>💡 Why Continue Using AI Recommendations?</h4>
+                                <ul>
+                                    <li>Higher returns: AI recommendations outperformed your picks by <strong>+6.2%</strong></li>
+                                    <li>Better risk management: Lower maximum drawdown (-6.1% vs -8.3%)</li>
+                                    <li>Consistent performance: 78% success rate with disciplined approach</li>
+                                    <li>Time savings: Automated analysis of 1000+ stocks daily</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Account Management Section -->
+            <section id="account-section" class="content-section">
+                <div class="account-grid">
+                    <!-- Profile Information -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Profile Information</h3>
+                            <button class="btn btn-sm" id="editProfileBtn">Edit</button>
+                        </div>
+                        <div class="card-content">
+                            <div class="profile-info">
+                                <div class="profile-field">
+                                    <label>Email Address</label>
+                                    <span id="profileEmail">-</span>
+                                </div>
+                                <div class="profile-field">
+                                    <label>Member Since</label>
+                                    <span id="memberSince">-</span>
+                                </div>
+                                <div class="profile-field">
+                                    <label>Timezone</label>
+                                    <span id="userTimezone">EST</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Subscription Management -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Subscription Plan</h3>
+                            <div class="plan-badge" id="currentPlanBadge">Free</div>
+                        </div>
+                        <div class="card-content">
+                            <div class="subscription-info">
+                                <div class="current-plan">
+                                    <h4 id="currentPlanName">Free Plan</h4>
+                                    <p id="currentPlanDesc">Basic access to stock recommendations</p>
+                                    <div class="plan-features">
+                                        <ul id="currentPlanFeatures">
+                                            <li>3 AI recommendations per day</li>
+                                            <li>Basic portfolio tracking</li>
+                                            <li>Email support</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <button class="btn btn-primary" id="upgradeBtn" style="margin-top: 16px;">
+                                    Upgrade to Pro
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Usage Statistics -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Usage Statistics</h3>
+                            <select id="usagePeriod" class="form-select">
+                                <option value="month">This Month</option>
+                                <option value="week">This Week</option>
+                                <option value="year">This Year</option>
+                            </select>
+                        </div>
+                        <div class="card-content">
+                            <div class="usage-stats">
+                                <div class="usage-metric">
+                                    <div class="metric-label">Recommendations Used</div>
+                                    <div class="metric-value" id="recsUsed">47 / 90</div>
+                                    <div class="metric-bar">
+                                        <div class="metric-progress" style="width: 52%"></div>
+                                    </div>
+                                </div>
+                                <div class="usage-metric">
+                                    <div class="metric-label">Portfolio Value Tracked</div>
+                                    <div class="metric-value" id="valueTracked">$127,450</div>
+                                </div>
+                                <div class="usage-metric">
+                                    <div class="metric-label">Performance Beats Market</div>
+                                    <div class="metric-value positive" id="marketBeats">+4.3%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Account Security -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Security Settings</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="security-settings">
+                                <div class="security-item">
+                                    <div class="security-info">
+                                        <h4>Password</h4>
+                                        <p>Last updated 3 months ago</p>
+                                    </div>
+                                    <button class="btn btn-sm" id="changePasswordBtn">Change</button>
+                                </div>
+                                <div class="security-item">
+                                    <div class="security-info">
+                                        <h4>Two-Factor Authentication</h4>
+                                        <p>Add an extra layer of security</p>
+                                    </div>
+                                    <button class="btn btn-sm" id="setup2FABtn">Enable</button>
+                                </div>
+                                <div class="security-item">
+                                    <div class="security-info">
+                                        <h4>Login Sessions</h4>
+                                        <p>Manage active sessions</p>
+                                    </div>
+                                    <button class="btn btn-sm" id="manageSessionsBtn">Manage</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Billing Information -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Billing & Payment</h3>
+                        </div>
+                        <div class="card-content">
+                            <div class="billing-info">
+                                <div class="billing-item">
+                                    <div class="billing-label">Payment Method</div>
+                                    <div class="billing-value" id="paymentMethod">No payment method</div>
+                                </div>
+                                <div class="billing-item">
+                                    <div class="billing-label">Next Billing Date</div>
+                                    <div class="billing-value" id="nextBilling">N/A</div>
+                                </div>
+                                <div class="billing-item">
+                                    <div class="billing-label">Billing Address</div>
+                                    <div class="billing-value" id="billingAddress">Not provided</div>
+                                </div>
+                            </div>
+                            <div class="billing-actions">
+                                <button class="btn btn-sm" id="updateBillingBtn">Update Payment</button>
+                                <button class="btn btn-sm" id="viewInvoicesBtn">View Invoices</button>
                             </div>
                         </div>
                     </div>
@@ -284,79 +599,41 @@
             </section>
         </div>
     </main>
-    
-    <!-- Modals -->
-    
-    <!-- Stock Detail Modal -->
-    <div class="modal-overlay" id="stock-modal-overlay">
-        <div class="modal stock-modal">
+
+    <!-- Create Portfolio Modal -->
+    <div id="createPortfolioModal" class="modal">
+        <div class="modal-content">
             <div class="modal-header">
-                <h2 id="stock-modal-title">Stock Details</h2>
-                <button class="btn-close" id="close-stock-modal">
-                    <i class="fas fa-times"></i>
-                </button>
+                <h3>Create New Portfolio</h3>
+                <span class="close">&times;</span>
             </div>
-            
-            <div class="modal-body" id="stock-modal-body">
-                <!-- Stock details will be populated by JavaScript -->
-            </div>
-            
-            <div class="modal-footer">
-                <button class="btn btn-outline" id="add-to-portfolio">
-                    <i class="fas fa-plus"></i>
-                    Add to Portfolio
-                </button>
-                <button class="btn btn-primary" id="view-stock-history">
-                    <i class="fas fa-history"></i>
-                    View History
-                </button>
-            </div>
+            <form id="createPortfolioForm" class="portfolio-form">
+                <div class="form-group">
+                    <label for="portfolioName">Portfolio Name</label>
+                    <input type="text" id="portfolioName" required placeholder="My Investment Portfolio">
+                </div>
+                <div class="form-group">
+                    <label for="portfolioDescription">Description</label>
+                    <textarea id="portfolioDescription" placeholder="Describe your investment strategy..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="tickerSearch">Add Stocks</label>
+                    <div class="ticker-search-container">
+                        <input type="text" id="tickerSearch" placeholder="Search for stocks (e.g., AAPL, Apple)">
+                        <div id="tickerSearchResults" class="ticker-search-results"></div>
+                    </div>
+                    <div id="selectedSymbols" class="selected-symbols">
+                        <div class="no-symbols">No symbols selected</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary btn-full">Create Portfolio</button>
+                </div>
+            </form>
         </div>
     </div>
-    
-    <!-- Notification Toast Container -->
-    <div class="toast-container" id="toast-container">
-        <!-- Toasts will be dynamically added here -->
-    </div>
-    
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.30.0/dist/date-fns.min.js"></script>
-    <script src="/js/utils.js"></script>
-    <script src="/js/api.js"></script>
-    <script src="/js/charts.js"></script>
-    <script src="/js/components.js"></script>
-    <script src="/js/main.js"></script>
-    
-    <!-- Analytics and Monitoring -->
-    <script>
-        // Basic performance monitoring
-        window.addEventListener('load', function() {
-            if ('performance' in window) {
-                const nav = (performance.getEntriesByType && performance.getEntriesByType('navigation')[0]);
-                const loadTime = nav ? nav.loadEventEnd : performance.now();
-                // Send to monitoring service
-                if (window.sendMetric) {
-                    window.sendMetric('page_load_time', loadTime);
-                }
-            }
-        });
-        
-        // Error tracking
-        window.addEventListener('error', function(event) {
-            console.error('JavaScript error:', event.error);
-            
-            // Send to monitoring service
-            if (window.sendError) {
-                window.sendError({
-                    message: event.message,
-                    filename: event.filename,
-                    lineno: event.lineno,
-                    colno: event.colno,
-                    error: event.error
-                });
-            }
-        });
-    </script>
+
+    <script src="js/recommendation-cache.js" defer></script>
+    <script src="js/dashboard.js" defer></script>
 </body>
 </html>
