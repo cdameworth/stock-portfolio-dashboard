@@ -167,11 +167,15 @@ class DashboardApp {
         
         // History button event delegation
         document.addEventListener('click', (e) => {
+            console.log('Click detected on:', e.target, 'Classes:', e.target.className);
             if (e.target.matches('.history-button') || e.target.closest('.history-button')) {
                 const button = e.target.matches('.history-button') ? e.target : e.target.closest('.history-button');
                 const symbol = button.dataset.symbol;
+                console.log('History button clicked:', symbol, 'Button:', button);
                 if (symbol) {
                     this.showTickerHistory(symbol);
+                } else {
+                    console.error('No symbol found on history button:', button);
                 }
             }
         });
@@ -1996,12 +2000,19 @@ class DashboardApp {
      * @param {string} symbol - Stock symbol to show history for
      */
     showTickerHistory(symbol) {
+        console.log('showTickerHistory called with symbol:', symbol);
+        console.log('All recommendations:', this.allRecommendations);
+        
         const history = this.getTickerHistory(symbol);
+        console.log('History for', symbol, ':', history);
         
         if (!history || history.length === 0) {
+            console.error('No history found for symbol:', symbol);
             this.showError(`No history found for ${symbol}`);
             return;
         }
+        
+        console.log('Showing history modal for', symbol, 'with', history.length, 'entries');
         
         // Create modal if it doesn't exist
         let modal = document.getElementById('tickerHistoryModal');
