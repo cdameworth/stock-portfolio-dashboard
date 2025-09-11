@@ -1,69 +1,43 @@
-import React, { useState, useEffect } from 'react';
-import { Container, Box, AppBar, Toolbar, Typography, Button, IconButton, Avatar, Menu, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Switch, FormControlLabel, Divider } from '@mui/material';
+import React, { useState } from 'react';
+import { Container, Box, AppBar, Toolbar, Typography, Button, IconButton, Menu, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Switch, FormControlLabel, Divider } from '@mui/material';
 import { AccountCircle, Dashboard, TrendingUp, Settings, Logout } from '@mui/icons-material';
+import { AppProvider, useAuth, useNavigation, useTheme, useApp } from './contexts/AppContext.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { LoadingSpinner, PageLoadingOverlay } from './components/LoadingState.jsx';
 import AuthDialog from './components/AuthDialog.jsx';
 import DashboardPage from './pages/Dashboard.jsx';
 import Portfolio from './pages/Portfolio.jsx';
 import Recommendations from './pages/Recommendations.jsx';
 
-function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentPage, setCurrentPage] = useState('dashboard');
+// Main App Content Component
+function AppContent() {
+  const { isAuthenticated, authLoading } = useAuth();
+  const { currentPage, setCurrentPage } = useNavigation();
+  const { theme } = useTheme();
+  const { state, actions } = useApp();
+  const settings = {
+    ...state.settings,
+    darkMode: theme === 'dark' // Sync with current theme
+  };
+
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authDialogType, setAuthDialogType] = useState('login');
   const [anchorEl, setAnchorEl] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [settings, setSettings] = useState({
-    emailAlerts: true,
-    pushNotifications: false,
-    darkMode: true,
-    showAdvancedMetrics: true
-  });
 
-  // Check for existing authentication on component mount
-  useEffect(() => {
-    const checkAuth = () => {
-      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-      const user = localStorage.getItem('user');
-      
-      if (token && user) {
-        // Verify token is still valid
-        fetch('/api/auth/verify', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        })
-        .then(response => {
-          if (response.ok) {
-            setIsAuthenticated(true);
-          } else {
-            // Token invalid, clear auth
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-          }
-        })
-        .catch(() => {
-          // Network error, assume logged out
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-        });
-      }
-    };
+  // Show loading screen while checking authentication
+  if (authLoading) {
+    return <PageLoadingOverlay message="Loading application..." />;
+  }
 
-    checkAuth();
-  }, []);
+  const { logout, user } = useAuth();
 
   const handleAuthSuccess = () => {
-    setIsAuthenticated(true);
     setAuthDialogOpen(false);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setIsAuthenticated(false);
-    setCurrentPage('dashboard');
+    logout();
     setAnchorEl(null);
   };
 
@@ -76,11 +50,14 @@ function App() {
     setAnchorEl(null);
   };
 
-  const handleSettingChange = (setting) => (event) => {
-    setSettings(prev => ({
-      ...prev,
-      [setting]: event.target.checked
-    }));
+  const handleSettingChange = (settingKey) => (event) => {
+    const value = event.target.checked;
+    actions.updateSettings({ [settingKey]: value });
+    
+    // Special handling for dark mode to also update theme
+    if (settingKey === 'darkMode') {
+      actions.setTheme(value ? 'dark' : 'light');
+    }
   };
 
   const openAuthDialog = (type) => {
@@ -91,11 +68,11 @@ function App() {
   const renderContent = () => {
     if (!isAuthenticated) {
       return (
-        <Box sx={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          alignItems: 'center', 
-          justifyContent: 'center', 
+        <Box sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
           minHeight: '70vh',
           textAlign: 'center'
         }}>
@@ -103,20 +80,20 @@ function App() {
             Professional Investment Management
           </Typography>
           <Typography variant="h6" sx={{ mb: 4, color: 'text.secondary', maxWidth: '600px' }}>
-            Access sophisticated portfolio analytics and AI-powered investment recommendations 
+            Access sophisticated portfolio analytics and AI-powered investment recommendations
             in our exclusive professional environment.
           </Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button 
-              variant="contained" 
-              size="large" 
+            <Button
+              variant="contained"
+              size="large"
               onClick={() => openAuthDialog('login')}
             >
               Member Access
             </Button>
-            <Button 
-              variant="outlined" 
-              size="large" 
+            <Button
+              variant="outlined"
+              size="large"
               onClick={() => openAuthDialog('register')}
             >
               Apply for Membership
@@ -126,15 +103,32 @@ function App() {
       );
     }
 
+    // Wrap pages in error boundaries
     switch (currentPage) {
       case 'dashboard':
-        return <DashboardPage />;
+        return (
+          <ErrorBoundary>
+            <DashboardPage />
+          </ErrorBoundary>
+        );
       case 'portfolio':
-        return <Portfolio />;
+        return (
+          <ErrorBoundary>
+            <Portfolio />
+          </ErrorBoundary>
+        );
       case 'recommendations':
-        return <Recommendations />;
+        return (
+          <ErrorBoundary>
+            <Recommendations />
+          </ErrorBoundary>
+        );
       default:
-        return <DashboardPage />;
+        return (
+          <ErrorBoundary>
+            <DashboardPage />
+          </ErrorBoundary>
+        );
     }
   };
 
@@ -278,6 +272,17 @@ function App() {
         onSwitchType={setAuthDialogType}
       />
     </>
+  );
+}
+
+// Main App component with providers
+function App() {
+  return (
+    <ErrorBoundary>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </ErrorBoundary>
   );
 }
 
