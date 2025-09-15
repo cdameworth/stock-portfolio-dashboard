@@ -39,7 +39,7 @@ function Portfolio() {
   const fetchPortfolio = async () => {
     try {
       const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-      const response = await fetch('/api/portfolio', {
+      const response = await fetch('/api/portfolios', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -57,11 +57,11 @@ function Portfolio() {
   };
 
   const handleAddPosition = async () => {
-    if (!searchSymbol || !shares) return;
+    if (!searchSymbol || !shares) {return;}
 
     try {
       const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-      const response = await fetch('/api/portfolio/add', {
+      const response = await fetch(`/api/portfolios/${portfolios[activePortfolio].id}/positions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -69,8 +69,7 @@ function Portfolio() {
         },
         body: JSON.stringify({
           symbol: typeof searchSymbol === 'string' ? searchSymbol.toUpperCase() : searchSymbol.symbol,
-          shares: parseInt(shares),
-          portfolioId: portfolios[activePortfolio].id
+          shares: parseInt(shares)
         })
       });
 
@@ -87,7 +86,7 @@ function Portfolio() {
   };
 
   const handleCreatePortfolio = () => {
-    if (!newPortfolioName.trim()) return;
+    if (!newPortfolioName.trim()) {return;}
     
     const newPortfolio = {
       id: `portfolio_${Date.now()}`,
@@ -113,7 +112,9 @@ function Portfolio() {
       const response = await fetch(`/api/stocks/search?q=${query}`);
       if (response.ok) {
         const data = await response.json();
-        setSymbolOptions(data);
+        // Ensure we get the results array from the API response
+        const results = Array.isArray(data) ? data : (data.results || []);
+        setSymbolOptions(results);
       } else {
         // Fallback to popular stocks if API fails
         const popularStocks = [
@@ -291,7 +292,7 @@ function Portfolio() {
         <DialogTitle>Add Position to {portfolios[activePortfolio]?.name}</DialogTitle>
         <DialogContent>
           <Autocomplete
-            options={symbolOptions}
+            options={Array.isArray(symbolOptions) ? symbolOptions : []}
             getOptionLabel={(option) => `${option.symbol} - ${option.name}`}
             loading={searchLoading}
             renderInput={(params) => (

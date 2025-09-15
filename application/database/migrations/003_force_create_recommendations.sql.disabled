@@ -1,0 +1,94 @@
+-- Force create recommendations tables with explicit DROP IF EXISTS
+-- This migration will ensure tables are created properly
+
+-- First, drop any existing tables if they exist
+DROP TABLE IF EXISTS hit_time_accuracy CASCADE;
+DROP TABLE IF EXISTS recommendation_outcomes CASCADE; 
+DROP TABLE IF EXISTS performance_metrics CASCADE;
+DROP TABLE IF EXISTS recommendations CASCADE;
+
+-- Create recommendations table
+CREATE TABLE recommendations (
+    id SERIAL PRIMARY KEY,
+    recommendation_id VARCHAR(255) UNIQUE NOT NULL,
+    symbol VARCHAR(10) NOT NULL,
+    company_name VARCHAR(255),
+    recommendation_type VARCHAR(10) NOT NULL CHECK (recommendation_type IN ('BUY', 'SELL', 'HOLD')),
+    prediction_score DECIMAL(5, 4),
+    confidence DECIMAL(5, 4),
+    current_price DECIMAL(10, 2) NOT NULL,
+    target_price DECIMAL(10, 2) NOT NULL,
+    stop_loss_price DECIMAL(10, 2),
+    risk_level VARCHAR(10) CHECK (risk_level IN ('LOW', 'MEDIUM', 'HIGH')),
+    rationale TEXT,
+    estimated_hit_days INTEGER,
+    estimated_hit_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    source VARCHAR(50),
+    metadata JSONB
+);
+
+-- Create indexes for recommendations table
+CREATE INDEX idx_recommendations_symbol ON recommendations (symbol);
+CREATE INDEX idx_recommendations_created_at ON recommendations (created_at);
+CREATE INDEX idx_recommendations_type ON recommendations (recommendation_type);
+CREATE INDEX idx_recommendations_hit_date ON recommendations (estimated_hit_date);
+
+-- Create recommendation outcomes table
+CREATE TABLE recommendation_outcomes (
+    id SERIAL PRIMARY KEY,
+    recommendation_id VARCHAR(255) NOT NULL,
+    symbol VARCHAR(10) NOT NULL,
+    check_date DATE NOT NULL,
+    check_price DECIMAL(10, 2) NOT NULL,
+    price_change_percent DECIMAL(8, 4),
+    target_achieved BOOLEAN DEFAULT FALSE,
+    stop_loss_triggered BOOLEAN DEFAULT FALSE,
+    days_since_recommendation INTEGER,
+    outcome_status VARCHAR(20) CHECK (outcome_status IN ('PENDING', 'SUCCESS', 'FAILED', 'PARTIAL', 'EXPIRED')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for recommendation outcomes
+CREATE INDEX idx_outcomes_check_date ON recommendation_outcomes (check_date);
+CREATE INDEX idx_outcomes_status ON recommendation_outcomes (outcome_status);
+CREATE UNIQUE INDEX unique_daily_check ON recommendation_outcomes (recommendation_id, check_date);
+
+-- Create performance metrics table
+CREATE TABLE performance_metrics (
+    id SERIAL PRIMARY KEY,
+    period VARCHAR(10) NOT NULL,
+    metric_date DATE NOT NULL,
+    total_recommendations INTEGER,
+    successful_recommendations INTEGER,
+    failed_recommendations INTEGER,
+    success_rate DECIMAL(5, 2),
+    average_gain DECIMAL(8, 2),
+    average_days_to_hit INTEGER,
+    high_confidence_accuracy DECIMAL(5, 2),
+    ai_return DECIMAL(8, 2),
+    sp500_return DECIMAL(8, 2),
+    nasdaq_return DECIMAL(8, 2),
+    ai_alpha DECIMAL(8, 2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create indexes for performance metrics
+CREATE INDEX idx_metrics_date ON performance_metrics (metric_date);
+CREATE INDEX idx_metrics_period ON performance_metrics (period);
+CREATE UNIQUE INDEX unique_daily_metric ON performance_metrics (period, metric_date);
+
+-- Create hit time accuracy table
+CREATE TABLE hit_time_accuracy (
+    id SERIAL PRIMARY KEY,
+    recommendation_id VARCHAR(255) NOT NULL,
+    estimated_hit_date DATE NOT NULL,
+    actual_hit_date DATE,
+    days_difference INTEGER,
+    accuracy_score DECIMAL(5, 2),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create index for hit time accuracy
+CREATE INDEX idx_accuracy_score ON hit_time_accuracy (accuracy_score);

@@ -15,6 +15,16 @@ const expressWinston = require('express-winston');
 const redis = require('redis');
 require('dotenv').config();
 
+// Log environment variables for debugging (without sensitive values)
+console.log('Environment variables loaded:', {
+  NODE_ENV: process.env.NODE_ENV || 'not set',
+  PORT: process.env.PORT || '3000',
+  DB_HOST: process.env.DB_HOST ? 'set' : 'not set',
+  BRANCA_SECRET: process.env.BRANCA_SECRET ? 'set' : 'not set',
+  STOCK_API_KEY: process.env.STOCK_API_KEY ? 'set' : 'not set',
+  REDIS_URL: process.env.REDIS_URL ? 'set' : 'not set'
+});
+
 // Import services
 const StockService = require('./services/stock-service');
 const PortfolioService = require('./services/portfolio-service');
@@ -92,18 +102,24 @@ const databaseService = new DatabaseService({
   password: process.env.DB_PASSWORD
 });
 
-// Initialize Redis client for caching
+// Initialize Redis client for caching (following official documentation)
 const redisClient = redis.createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379'
-});
-
-redisClient.on('error', (err) => {
-  logger.error('Redis Client Error', err);
-});
-
-redisClient.on('connect', () => {
-  logger.info('Redis client connected');
-});
+  url: process.env.REDIS_URL || 'redis://localhost:6379',
+  socket: {
+    reconnectStrategy: (retries) => {
+      // Exponential backoff with jitter (from official docs)
+      const jitter = Math.floor(Math.random() * 200);
+      const delay = Math.min(Math.pow(2, retries) * 50, 2000);
+      return delay + jitter;
+    }
+  }
+})
+  .on('error', (err) => {
+    logger.error('Redis Client Error', err);
+  })
+  .on('connect', () => {
+    logger.info('Redis client connected');
+  });
 
 // Initialize recommendation sync service
 const recommendationSyncService = new RecommendationSyncService({
@@ -119,7 +135,7 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com"],
       scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net", "https://pagead2.googlesyndication.com", "https://ep2.adtrafficquality.google", "https://*.google.com", "https://*.googleapis.com", "https://*.doubleclick.net"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://ep1.adtrafficquality.google", "https://ep2.adtrafficquality.google", "https://googleads.g.doubleclick.net", "https://pagead2.googlesyndication.com", "https://*.google.com", "https://*.googleapis.com", "https://*.doubleclick.net"],
+      connectSrc: ["'self'", "https://2cqomr4nb2.execute-api.us-east-1.amazonaws.com", "https://ep1.adtrafficquality.google", "https://ep2.adtrafficquality.google", "https://googleads.g.doubleclick.net", "https://pagead2.googlesyndication.com", "https://*.google.com", "https://*.googleapis.com", "https://*.doubleclick.net"],
       fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://cdn.jsdelivr.net", "https://fonts.googleapis.com", "https://fonts.gstatic.com"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
@@ -132,13 +148,11 @@ app.use(helmet({
   hsts: IS_PROD ? undefined : false
 }));
 
-// In non-secure contexts, explicitly opt-out of Origin-Agent-Cluster to avoid mixed clustering
-if (!IS_PROD) {
-  app.use((req, res, next) => {
-    res.setHeader('Origin-Agent-Cluster', '?0');
-    next();
-  });
-}
+// Set Origin-Agent-Cluster header uniformly for all environments
+app.use((req, res, next) => {
+  res.setHeader('Origin-Agent-Cluster', '?1');
+  next();
+});
 // Compression
 app.use(compression());
 
@@ -169,12 +183,54 @@ app.use(expressWinston.logger({
   }
 }));
 
-// Static file serving (without index.html auto-serve to allow custom routing)
-app.use(express.static(path.join(__dirname, 'public'), {
-  maxAge: '1d',
-  etag: true,
-  index: false // Disable automatic index.html serving
+// Serve React build static files with NO caching to force refresh
+app.use(express.static(path.join(__dirname, 'public', 'react-dist'), {
+  maxAge: 0,
+  etag: false,
+  index: false, // Disable automatic index.html serving
+  lastModified: false,
+  cacheControl: false
 }));
+
+// Serve other static assets (ads.txt, etc.)
+app.use('/assets', express.static(path.join(__dirname, 'public'), {
+  maxAge: '1d',
+  etag: true
+}));
+
+// Favicon routes - try React build first, then main public directory
+app.get('/favicon.ico', (req, res) => {
+  const reactPath = path.join(__dirname, 'public', 'react-dist', 'favicon.ico');
+  const publicPath = path.join(__dirname, 'public', 'favicon.ico');
+  
+  if (require('fs').existsSync(reactPath)) {
+    res.sendFile(reactPath);
+  } else {
+    res.sendFile(publicPath);
+  }
+});
+
+app.get('/favicon.svg', (req, res) => {
+  const reactPath = path.join(__dirname, 'public', 'react-dist', 'favicon.svg');
+  const publicPath = path.join(__dirname, 'public', 'favicon.svg');
+  
+  if (require('fs').existsSync(reactPath)) {
+    res.sendFile(reactPath);
+  } else {
+    res.sendFile(publicPath);
+  }
+});
+
+app.get('/favicon-32x32.png', (req, res) => {
+  const reactPath = path.join(__dirname, 'public', 'react-dist', 'favicon-32x32.png');
+  const publicPath = path.join(__dirname, 'public', 'favicon-32x32.png');
+  
+  if (require('fs').existsSync(reactPath)) {
+    res.sendFile(reactPath);
+  } else {
+    res.sendFile(publicPath);
+  }
+});
 
 // Ads.txt route for Google AdSense verification
 app.get('/ads.txt', (req, res) => {
@@ -417,6 +473,54 @@ app.get('/api/recommendations/:symbol', async (req, res) => {
   }
 });
 
+// Stock search endpoint
+app.get('/api/stocks/search', async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q || q.length < 1) {
+      return res.status(400).json({ error: 'Query parameter "q" is required' });
+    }
+
+    // Simple stock search - in a real app this would query a proper stock database
+    // For now, return a basic search result based on common symbols
+    const commonStocks = [
+      { symbol: 'AAPL', name: 'Apple Inc.' },
+      { symbol: 'GOOGL', name: 'Alphabet Inc.' },
+      { symbol: 'MSFT', name: 'Microsoft Corporation' },
+      { symbol: 'AMZN', name: 'Amazon.com Inc.' },
+      { symbol: 'TSLA', name: 'Tesla Inc.' },
+      { symbol: 'META', name: 'Meta Platforms Inc.' },
+      { symbol: 'NVDA', name: 'NVIDIA Corporation' },
+      { symbol: 'NFLX', name: 'Netflix Inc.' },
+      { symbol: 'DDOG', name: 'Datadog Inc.' },
+      { symbol: 'SNOW', name: 'Snowflake Inc.' },
+      { symbol: 'PLTR', name: 'Palantir Technologies Inc.' },
+      { symbol: 'ZM', name: 'Zoom Video Communications' },
+      { symbol: 'DOCU', name: 'DocuSign Inc.' },
+      { symbol: 'CRWD', name: 'CrowdStrike Holdings Inc.' },
+      { symbol: 'OKTA', name: 'Okta Inc.' },
+      { symbol: 'TWLO', name: 'Twilio Inc.' },
+      { symbol: 'NOW', name: 'ServiceNow Inc.' },
+      { symbol: 'AVGO', name: 'Broadcom Inc.' },
+      { symbol: 'QCOM', name: 'Qualcomm Inc.' },
+      { symbol: 'ADSK', name: 'Autodesk Inc.' },
+      { symbol: 'CDNS', name: 'Cadence Design Systems Inc.' }
+    ];
+
+    const query = q.toLowerCase();
+    const results = commonStocks.filter(stock =>
+      stock.symbol.toLowerCase().includes(query) ||
+      stock.name.toLowerCase().includes(query)
+    ).slice(0, 10); // Limit to 10 results
+
+    res.json({ results });
+  } catch (error) {
+    logger.error('Error searching stocks:', error);
+    res.status(500).json({ error: 'Failed to search stocks' });
+  }
+});
+
 // Portfolio management endpoints
 app.get('/api/portfolios', authMiddleware, async (req, res) => {
   try {
@@ -484,6 +588,26 @@ app.delete('/api/portfolios/:portfolioId', authMiddleware, async (req, res) => {
     logger.error('Error deleting portfolio:', error);
     metricsService.incrementCounter('api_errors_total', { endpoint: 'delete_portfolio' });
     res.status(500).json({ error: 'Failed to delete portfolio' });
+  }
+});
+
+// Add position to portfolio
+app.post('/api/portfolios/:portfolioId/positions', authMiddleware, async (req, res) => {
+  try {
+    const { portfolioId } = req.params;
+    const { symbol, shares } = req.body;
+    
+    const position = await portfolioService.addPosition(req.user.userId, portfolioId, {
+      symbol: symbol.toUpperCase(),
+      shares: parseInt(shares)
+    });
+    
+    metricsService.incrementCounter('api_requests_total', { endpoint: 'add_position' });
+    res.status(201).json(position);
+  } catch (error) {
+    logger.error('Error adding position:', error);
+    metricsService.incrementCounter('api_errors_total', { endpoint: 'add_position' });
+    res.status(500).json({ error: 'Failed to add position' });
   }
 });
 
@@ -681,6 +805,31 @@ app.get('/api/ai-performance/cache/stats', async (req, res) => {
   }
 });
 
+// Dashboard Analytics API endpoint
+app.get('/api/analytics/dashboard', async (req, res) => {
+  try {
+    // Return market indices and basic analytics data
+    const dashboardData = {
+      marketIndices: {
+        sp500: { value: 5234.18, change: +0.8 },
+        nasdaq: { value: 16274.94, change: +1.2 },
+        dow: { value: 39294.76, change: +0.6 }
+      },
+      marketStatus: 'open', // or 'closed', 'pre-market', 'after-hours'
+      lastUpdated: new Date().toISOString()
+    };
+
+    res.json(dashboardData);
+  } catch (error) {
+    logger.error('Error fetching dashboard analytics:', error);
+    res.status(500).json({
+      error: 'Failed to fetch dashboard analytics',
+      details: error.message
+    });
+  }
+});
+
+
 // WebSocket-like endpoint for real-time updates (using Server-Sent Events)
 app.get('/api/stream/recommendations', (req, res) => {
   res.writeHead(200, {
@@ -722,14 +871,24 @@ app.get('/api/stream/recommendations', (req, res) => {
   metricsService.incrementCounter('sse_connections_total');
 });
 
-// Serve the landing page
+// Serve the React app for all SPA routes
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+  res.set({
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  });
+  res.sendFile(path.join(__dirname, 'public', 'react-dist', 'index.html'));
 });
 
-// Serve dashboard pages (require authentication)
+// Serve React app for dashboard pages
 app.get(['/dashboard', '/portfolio'], (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.set({
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  });
+  res.sendFile(path.join(__dirname, 'public', 'react-dist', 'index.html'));
 });
 
 // Handle /recommendations route - serve SPA or API data
@@ -737,7 +896,12 @@ app.get('/recommendations', async (req, res, next) => {
   try {
     // If the client wants HTML, serve the SPA
     if (req.accepts(['html', 'json']) === 'html') {
-      return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+      res.set({
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+      return res.sendFile(path.join(__dirname, 'public', 'react-dist', 'index.html'));
     }
 
     // Otherwise serve JSON (alias to /api/recommendations)
@@ -788,7 +952,7 @@ process.on('SIGINT', async () => {
 
 // Start server
 app.listen(PORT, '0.0.0.0', async () => {
-  // Connect to Redis (non-blocking)
+  // Connect to Redis (non-blocking, following official docs)
   redisClient.connect().then(() => {
     logger.info('Redis connected successfully');
   }).catch((error) => {
