@@ -1,0 +1,303 @@
+/* Mobile-Specific Optimizations */
+
+/* Prevent zoom on iOS when focusing inputs */
+@supports (-webkit-overflow-scrolling: touch) {
+    input[type="color"],
+    input[type="date"],
+    input[type="datetime"],
+    input[type="datetime-local"],
+    input[type="email"],
+    input[type="month"],
+    input[type="number"],
+    input[type="password"],
+    input[type="search"],
+    input[type="tel"],
+    input[type="text"],
+    input[type="time"],
+    input[type="url"],
+    input[type="week"],
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+}
+
+/* Improve touch targets for mobile */
+@media (hover: none) and (pointer: coarse) {
+    /* Ensure all interactive elements meet 44px minimum */
+    button,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    a,
+    .btn,
+    .nav-link,
+    .card,
+    .metric-card,
+    select {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 12px 16px;
+    }
+
+    /* Larger tap areas for small elements */
+    .close,
+    .icon-button,
+    .checkbox,
+    .radio {
+        min-height: 48px;
+        min-width: 48px;
+    }
+
+    /* Add padding around clickable elements */
+    .nav-link {
+        padding: 16px 20px;
+        margin: 4px 0;
+    }
+
+    /* Enhanced button spacing */
+    .btn + .btn {
+        margin-left: 8px;
+    }
+
+    /* Better spacing for form elements */
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    input,
+    select,
+    textarea {
+        padding: 14px 16px;
+        margin: 8px 0;
+    }
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-appearance: none) {
+    /* Fix iOS double-tap zoom on buttons */
+    button,
+    input[type="button"],
+    input[type="submit"],
+    .btn {
+        touch-action: manipulation;
+    }
+
+    /* Smooth scrolling for iOS */
+    .main-content,
+    .sidebar {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Fix iOS fixed positioning issues */
+    .mobile-menu-toggle {
+        position: fixed;
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+    }
+}
+
+/* Android Chrome specific fixes */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    /* Prevent text zoom on orientation change */
+    html {
+        -webkit-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+    }
+
+    /* Fix Chrome mobile input styling */
+    input,
+    select,
+    textarea {
+        -webkit-appearance: none;
+        border-radius: 4px;
+    }
+}
+
+/* High DPI/Retina display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2),
+       (min-resolution: 192dpi) {
+    /* Crisper borders on high DPI */
+    .card,
+    .metric-card,
+    .btn,
+    input,
+    select {
+        border-width: 0.5px;
+    }
+
+    /* Better icon rendering */
+    .nav-icon,
+    .metric-icon,
+    .btn-icon {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    /* Keep essential transitions for UX */
+    .sidebar,
+    .mobile-menu-toggle span,
+    .sidebar-backdrop {
+        transition-duration: 0.2s !important;
+    }
+}
+
+/* Dark mode mobile optimizations */
+@media (prefers-color-scheme: dark) {
+    /* Better contrast for mobile dark mode */
+    .mobile-menu-toggle {
+        background: #2563eb;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+    }
+
+    .sidebar-backdrop {
+        background: rgba(0, 0, 0, 0.7);
+    }
+
+    /* Improve readability on mobile screens */
+    .card,
+    .metric-card {
+        background: #1f2937;
+        border: 1px solid #374151;
+    }
+
+    /* Better contrast for text on mobile */
+    body {
+        color: #f9fafb;
+    }
+
+    .text-secondary {
+        color: #d1d5db !important;
+    }
+}
+
+/* Landscape mobile optimizations */
+@media (max-width: 768px) and (orientation: landscape) {
+    /* Reduce header height in landscape */
+    .header {
+        padding: 10px 20px;
+    }
+
+    .header-title h1 {
+        font-size: 1.5rem;
+    }
+
+    /* Compact metrics layout */
+    .metrics-row {
+        gap: 10px;
+    }
+
+    .metric-card {
+        padding: 12px;
+    }
+
+    .metric-value {
+        font-size: 1.2rem;
+    }
+
+    /* Adjust mobile menu for landscape */
+    .mobile-menu-toggle {
+        top: 8px;
+        left: 8px;
+        width: 36px;
+        height: 36px;
+    }
+
+    .main-content {
+        padding-top: 60px;
+    }
+}
+
+/* PWA-specific optimizations */
+@media (display-mode: standalone) {
+    /* Account for status bar in PWA mode */
+    .main-content {
+        padding-top: calc(90px + env(safe-area-inset-top, 0px));
+    }
+
+    .mobile-menu-toggle {
+        top: calc(20px + env(safe-area-inset-top, 0px));
+        left: calc(20px + env(safe-area-inset-left, 0px));
+    }
+
+    /* Account for home indicator on devices with it */
+    .sidebar-footer {
+        padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+    }
+}
+
+/* Accessibility improvements for mobile */
+@media (max-width: 768px) {
+    /* Ensure sufficient color contrast */
+    .btn-primary {
+        background: #1d4ed8;
+        border-color: #1d4ed8;
+    }
+
+    .btn-primary:hover,
+    .btn-primary:focus {
+        background: #1e40af;
+        border-color: #1e40af;
+    }
+
+    /* Focus indicators for keyboard navigation */
+    button:focus,
+    input:focus,
+    select:focus,
+    textarea:focus,
+    .nav-link:focus {
+        outline: 2px solid #3b82f6;
+        outline-offset: 2px;
+    }
+
+    /* Skip to content link for screen readers */
+    .skip-link {
+        position: absolute;
+        top: -40px;
+        left: 6px;
+        background: #000;
+        color: #fff;
+        padding: 8px;
+        text-decoration: none;
+        z-index: 1002;
+    }
+
+    .skip-link:focus {
+        top: 6px;
+    }
+}
+
+/* Performance optimizations */
+@media (max-width: 768px) {
+    /* Use hardware acceleration for smooth animations */
+    .sidebar,
+    .mobile-menu-toggle,
+    .sidebar-backdrop {
+        will-change: transform;
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+    }
+
+    /* Optimize repaints */
+    .card,
+    .metric-card {
+        contain: layout style;
+    }
+
+    /* Lazy load improvements */
+    img {
+        loading: lazy;
+    }
+}

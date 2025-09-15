@@ -15,9 +15,14 @@ function AppContent() {
   const { currentPage, setCurrentPage } = useNavigation();
   const { theme } = useTheme();
   const { state, actions } = useApp();
+  
+  // Initialize settings with defaults if not present
   const settings = {
-    ...state.settings,
-    darkMode: theme === 'dark' // Sync with current theme
+    emailAlerts: false,
+    pushNotifications: false,
+    showAdvancedMetrics: true,
+    darkMode: theme === 'dark',
+    ...(state?.settings || {})
   };
 
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
@@ -30,9 +35,15 @@ function AppContent() {
     return <PageLoadingOverlay message="Loading application..." />;
   }
 
-  const { logout, user } = useAuth();
+  const { logout, user, setAuthenticated, setUser } = useAuth();
 
   const handleAuthSuccess = () => {
+    // Get user data from localStorage after successful login
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      setUser(JSON.parse(savedUser));
+      setAuthenticated(true);
+    }
     setAuthDialogOpen(false);
   };
 
@@ -73,21 +84,45 @@ function AppContent() {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          minHeight: '70vh',
-          textAlign: 'center'
+          minHeight: { xs: '60vh', sm: '70vh' },
+          textAlign: 'center',
+          px: { xs: 2, sm: 3 }
         }}>
-          <Typography variant="h2" sx={{ mb: 2, fontFamily: '"Playfair Display", serif' }}>
+          <Typography
+            variant="h2"
+            sx={{
+              mb: { xs: 1.5, sm: 2 },
+              fontFamily: '"Playfair Display", serif',
+              fontSize: { xs: '1.8rem', sm: '2.5rem', md: '3rem' }
+            }}
+          >
             Professional Investment Management
           </Typography>
-          <Typography variant="h6" sx={{ mb: 4, color: 'text.secondary', maxWidth: '600px' }}>
+          <Typography
+            variant="h6"
+            sx={{
+              mb: { xs: 3, sm: 4 },
+              color: 'text.secondary',
+              maxWidth: { xs: '100%', sm: '600px' },
+              fontSize: { xs: '1rem', sm: '1.25rem' },
+              lineHeight: 1.6
+            }}
+          >
             Access sophisticated portfolio analytics and AI-powered investment recommendations
             in our exclusive professional environment.
           </Typography>
-          <Box sx={{ display: 'flex', gap: 2 }}>
+          <Box sx={{
+            display: 'flex',
+            gap: { xs: 1.5, sm: 2 },
+            flexDirection: { xs: 'column', sm: 'row' },
+            width: { xs: '100%', sm: 'auto' },
+            maxWidth: { xs: '300px', sm: 'none' }
+          }}>
             <Button
               variant="contained"
               size="large"
               onClick={() => openAuthDialog('login')}
+              sx={{ minHeight: 48 }}
             >
               Member Access
             </Button>
@@ -95,6 +130,7 @@ function AppContent() {
               variant="outlined"
               size="large"
               onClick={() => openAuthDialog('register')}
+              sx={{ minHeight: 48 }}
             >
               Apply for Membership
             </Button>
@@ -136,35 +172,70 @@ function AppContent() {
     <>
       <AppBar position="sticky">
         <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1, fontFamily: '"Playfair Display", serif' }}>
+          <Typography
+            variant="h6"
+            sx={{
+              flexGrow: 1,
+              fontFamily: '"Playfair Display", serif',
+              fontSize: { xs: '1.1rem', sm: '1.25rem' }
+            }}
+          >
             Portfolio Management
           </Typography>
-          
+
           {isAuthenticated ? (
             <>
-              <Button 
-                color="inherit" 
-                startIcon={<Dashboard />}
-                onClick={() => setCurrentPage('dashboard')}
-                sx={{ mr: 1 }}
-              >
-                Dashboard
-              </Button>
-              <Button 
-                color="inherit" 
-                startIcon={<TrendingUp />}
-                onClick={() => setCurrentPage('portfolio')}
-                sx={{ mr: 1 }}
-              >
-                Portfolio
-              </Button>
-              <Button 
-                color="inherit" 
-                onClick={() => setCurrentPage('recommendations')}
-                sx={{ mr: 2 }}
-              >
-                AI Insights
-              </Button>
+              <Box sx={{
+                display: { xs: 'none', md: 'flex' },
+                gap: 1,
+                mr: 2
+              }}>
+                <Button
+                  color="inherit"
+                  startIcon={<Dashboard />}
+                  onClick={() => setCurrentPage('dashboard')}
+                  size="small"
+                >
+                  Dashboard
+                </Button>
+                <Button
+                  color="inherit"
+                  startIcon={<TrendingUp />}
+                  onClick={() => setCurrentPage('portfolio')}
+                  size="small"
+                >
+                  Portfolio
+                </Button>
+                <Button
+                  color="inherit"
+                  onClick={() => setCurrentPage('recommendations')}
+                  size="small"
+                >
+                  AI Insights
+                </Button>
+              </Box>
+
+              <Box sx={{
+                display: { xs: 'flex', md: 'none' },
+                gap: 0.5,
+                mr: 1
+              }}>
+                <IconButton
+                  color="inherit"
+                  onClick={() => setCurrentPage('dashboard')}
+                  size="small"
+                >
+                  <Dashboard />
+                </IconButton>
+                <IconButton
+                  color="inherit"
+                  onClick={() => setCurrentPage('portfolio')}
+                  size="small"
+                >
+                  <TrendingUp />
+                </IconButton>
+              </Box>
+
               <IconButton
                 size="large"
                 onClick={(event) => setAnchorEl(event.currentTarget)}
@@ -181,6 +252,13 @@ function AppContent() {
                   <Settings sx={{ mr: 1 }} />
                   Settings
                 </MenuItem>
+                <MenuItem
+                  onClick={() => setCurrentPage('recommendations')}
+                  sx={{ display: { xs: 'flex', md: 'none' } }}
+                >
+                  <TrendingUp sx={{ mr: 1 }} />
+                  AI Insights
+                </MenuItem>
                 <MenuItem onClick={handleLogout}>
                   <Logout sx={{ mr: 1 }} />
                   Sign Out
@@ -188,11 +266,24 @@ function AppContent() {
               </Menu>
             </>
           ) : (
-            <Box>
-              <Button color="inherit" onClick={() => openAuthDialog('login')}>
+            <Box sx={{
+              display: 'flex',
+              gap: { xs: 0.5, sm: 1 },
+              flexDirection: { xs: 'column', sm: 'row' },
+              alignItems: 'center'
+            }}>
+              <Button
+                color="inherit"
+                onClick={() => openAuthDialog('login')}
+                size={{ xs: 'small', sm: 'medium' }}
+              >
                 Member Access
               </Button>
-              <Button color="inherit" onClick={() => openAuthDialog('register')}>
+              <Button
+                color="inherit"
+                onClick={() => openAuthDialog('register')}
+                size={{ xs: 'small', sm: 'medium' }}
+              >
                 Apply
               </Button>
             </Box>
@@ -200,7 +291,14 @@ function AppContent() {
         </Toolbar>
       </AppBar>
 
-      <Container maxWidth="xl" sx={{ mt: 3, mb: 3 }}>
+      <Container
+        maxWidth="xl"
+        sx={{
+          mt: { xs: 2, sm: 3 },
+          mb: { xs: 2, sm: 3 },
+          px: { xs: 1, sm: 2, md: 3 }
+        }}
+      >
         {renderContent()}
       </Container>
 

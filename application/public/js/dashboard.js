@@ -134,33 +134,61 @@ class DashboardApp {
             this.logout();
         });
         
-        // Mobile menu toggle
+        // Mobile menu toggle with backdrop
         const mobileMenuToggle = document.getElementById('mobileMenuToggle');
         const sidebar = document.getElementById('sidebar');
+        const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+
         if (mobileMenuToggle && sidebar) {
+            const toggleMobileMenu = (show) => {
+                if (show) {
+                    mobileMenuToggle.classList.add('active');
+                    sidebar.classList.add('mobile-open');
+                    if (sidebarBackdrop) sidebarBackdrop.classList.add('active');
+                    document.body.style.overflow = 'hidden'; // Prevent scrolling
+                } else {
+                    mobileMenuToggle.classList.remove('active');
+                    sidebar.classList.remove('mobile-open');
+                    if (sidebarBackdrop) sidebarBackdrop.classList.remove('active');
+                    document.body.style.overflow = ''; // Restore scrolling
+                }
+            };
+
             mobileMenuToggle.addEventListener('click', () => {
-                mobileMenuToggle.classList.toggle('active');
-                sidebar.classList.toggle('mobile-open');
+                const isOpen = sidebar.classList.contains('mobile-open');
+                toggleMobileMenu(!isOpen);
             });
-            
+
             // Close mobile menu when clicking on nav links
             document.querySelectorAll('.nav-link').forEach(link => {
                 link.addEventListener('click', () => {
                     if (window.innerWidth <= 768) {
-                        mobileMenuToggle.classList.remove('active');
-                        sidebar.classList.remove('mobile-open');
+                        toggleMobileMenu(false);
                     }
                 });
             });
-            
-            // Close mobile menu when clicking outside
+
+            // Close mobile menu when clicking backdrop
+            if (sidebarBackdrop) {
+                sidebarBackdrop.addEventListener('click', () => {
+                    toggleMobileMenu(false);
+                });
+            }
+
+            // Close mobile menu when clicking outside (fallback)
             document.addEventListener('click', (e) => {
-                if (window.innerWidth <= 768 && 
-                    !sidebar.contains(e.target) && 
+                if (window.innerWidth <= 768 &&
+                    !sidebar.contains(e.target) &&
                     !mobileMenuToggle.contains(e.target) &&
                     sidebar.classList.contains('mobile-open')) {
-                    mobileMenuToggle.classList.remove('active');
-                    sidebar.classList.remove('mobile-open');
+                    toggleMobileMenu(false);
+                }
+            });
+
+            // Handle window resize to clean up mobile menu state
+            window.addEventListener('resize', () => {
+                if (window.innerWidth > 768 && sidebar.classList.contains('mobile-open')) {
+                    toggleMobileMenu(false);
                 }
             });
         }

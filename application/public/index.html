@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="google-adsense-account" content="ca-pub-8872632698562518">
-    <title>Stock Portfolio Dashboard</title>
+    <title>Portfolio Dashboard - Professional Investment Management</title>
     <meta name="description" content="Professional stock portfolio management with AI-powered investment recommendations">
     <meta name="robots" content="index, follow">
     <link rel="icon" type="image/x-icon" href="favicon.ico">
@@ -14,12 +14,16 @@
     <link rel="stylesheet" href="css/header-additions.css">
     <link rel="stylesheet" href="css/enhanced-components.css">
     <link rel="stylesheet" href="css/account-management.css">
+    <link rel="stylesheet" href="css/professional-black-tie.css">
+    <link rel="stylesheet" href="css/mobile-optimizations.css">
     
     <!-- Google AdSense -->
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8872632698562518"
          crossorigin="anonymous"></script>
 </head>
 <body>
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+
     <div id="loadingScreen" class="loading-screen">
         <div class="loading-spinner"></div>
         <p>Loading your dashboard...</p>
@@ -31,30 +35,32 @@
         <span></span>
     </button>
 
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
     <nav class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h2>📈 Stock Portfolio Pro</h2>
-            <p class="tagline">Beat the Market</p>
+        <div class="sidebar-header luxury-sidebar-header">
+            <h2 class="brand-luxury">Portfolio Pro</h2>
+            <p class="tagline-luxury">Professional Investment Management</p>
         </div>
         <ul class="nav-menu">
-            <li><a href="#dashboard" class="nav-link active" data-section="dashboard">
-                <span class="nav-icon">📊</span>
+            <li><a href="#dashboard" class="nav-link nav-link-luxury active" data-section="dashboard">
+                <span class="nav-icon nav-icon-luxury">📊</span>
                 Dashboard
             </a></li>
-            <li><a href="#recommendations" class="nav-link" data-section="recommendations">
-                <span class="nav-icon">🤖</span>
+            <li><a href="#recommendations" class="nav-link nav-link-luxury" data-section="recommendations">
+                <span class="nav-icon nav-icon-luxury">🤖</span>
                 AI Recommendations
             </a></li>
-            <li><a href="#portfolios" class="nav-link" data-section="portfolios">
-                <span class="nav-icon">💼</span>
+            <li><a href="#portfolios" class="nav-link nav-link-luxury" data-section="portfolios">
+                <span class="nav-icon nav-icon-luxury">💼</span>
                 My Portfolios
             </a></li>
-            <li><a href="#performance" class="nav-link" data-section="performance">
-                <span class="nav-icon">📈</span>
+            <li><a href="#performance" class="nav-link nav-link-luxury" data-section="performance">
+                <span class="nav-icon nav-icon-luxury">📈</span>
                 Performance
             </a></li>
-            <li><a href="#account" class="nav-link" data-section="account">
-                <span class="nav-icon">👤</span>
+            <li><a href="#account" class="nav-link nav-link-luxury" data-section="account">
+                <span class="nav-icon nav-icon-luxury">👤</span>
                 Account
             </a></li>
         </ul>
@@ -69,19 +75,19 @@
                     <span id="userPlan" class="user-plan">Free</span>
                 </div>
             </div>
-            <button id="logoutBtn" class="btn btn-logout">Logout</button>
+            <button id="logoutBtn" class="btn btn-logout btn-luxury">Logout</button>
         </div>
     </nav>
 
-    <main class="main-content">
+    <main class="main-content" id="main-content">
         <header class="header">
-            <div class="header-title">
-                <h1 id="pageTitle">Dashboard</h1>
-                <p id="pageSubtitle">Welcome back! Here's your market overview.</p>
+            <div class="header-title header-title-luxury">
+                <h1 id="pageTitle" class="page-title-luxury">Dashboard</h1>
+                <p id="pageSubtitle" class="page-subtitle-luxury">Welcome back! Here's your portfolio overview.</p>
             </div>
             <div class="header-actions">
-                <button class="btn btn-primary" id="refreshBtn">
-                    <span class="btn-icon">🔄</span>
+                <button class="btn btn-primary btn-luxury btn-premium" id="refreshBtn">
+                    <span class="btn-icon btn-icon-luxury">🔄</span>
                     Refresh Data
                 </button>
             </div>
@@ -93,37 +99,37 @@
                 <div class="dashboard-grid">
                     <!-- Key Metrics -->
                     <div class="metrics-row">
-                        <div class="metric-card">
+                        <div class="metric-card metric-card-luxury">
                             <div class="metric-header">
-                                <span class="metric-title">Total Portfolio Value</span>
-                                <span class="metric-icon">💰</span>
+                                <span class="metric-title metric-title-luxury">Total Portfolio Value</span>
+                                <span class="metric-icon metric-icon-luxury">💰</span>
                             </div>
-                            <div class="metric-value" id="totalValue">$0.00</div>
+                            <div class="metric-value metric-value-luxury" id="totalValue">$0.00</div>
                             <div class="metric-change" id="totalChange">--</div>
                         </div>
-                        <div class="metric-card">
+                        <div class="metric-card metric-card-luxury">
                             <div class="metric-header">
-                                <span class="metric-title">Today's Change</span>
-                                <span class="metric-icon">📈</span>
+                                <span class="metric-title metric-title-luxury">Today's Change</span>
+                                <span class="metric-icon metric-icon-luxury">📈</span>
                             </div>
-                            <div class="metric-value" id="todayChange">$0.00</div>
+                            <div class="metric-value metric-value-luxury" id="todayChange">$0.00</div>
                             <div class="metric-change" id="todayPercent">--</div>
                         </div>
-                        <div class="metric-card">
+                        <div class="metric-card metric-card-luxury">
                             <div class="metric-header">
-                                <span class="metric-title">Active Positions</span>
-                                <span class="metric-icon">📊</span>
+                                <span class="metric-title metric-title-luxury">Active Positions</span>
+                                <span class="metric-icon metric-icon-luxury">📊</span>
                             </div>
-                            <div class="metric-value" id="activePositions">0</div>
+                            <div class="metric-value metric-value-luxury" id="activePositions">0</div>
                             <div class="metric-change">Portfolios</div>
                         </div>
                     </div>
 
                     <!-- Recent Recommendations -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>Latest AI Recommendations</h3>
-                            <span class="live-indicator">🟢 Live</span>
+                    <div class="card card-luxury">
+                        <div class="card-header card-header-luxury">
+                            <h3 class="card-title-luxury">Latest AI Recommendations</h3>
+                            <span class="live-indicator live-indicator-luxury">🟢 Live</span>
                         </div>
                         <div class="card-content">
                             <div id="recentRecommendations" class="recommendations-list">
@@ -133,10 +139,10 @@
                     </div>
 
                     <!-- Market Overview -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>Market Overview</h3>
-                            <small>Real-time market data</small>
+                    <div class="card card-luxury">
+                        <div class="card-header card-header-luxury">
+                            <h3 class="card-title-luxury">Market Overview</h3>
+                            <small class="card-subtitle-luxury">Real-time market data</small>
                         </div>
                         <div class="card-content">
                             <div id="marketOverview" class="market-grid">
@@ -145,10 +151,10 @@
                         </div>
 
                     <!-- Market Insights Section -->
-                    <div class="card dashboard-insights">
-                        <div class="card-header">
-                            <h3>Market Insights</h3>
-                            <small>AI-powered market analysis</small>
+                    <div class="card card-luxury dashboard-insights">
+                        <div class="card-header card-header-luxury">
+                            <h3 class="card-title-luxury">Market Insights</h3>
+                            <small class="card-subtitle-luxury">AI-powered market analysis</small>
                         </div>
                         <div class="card-content">
                             <div class="insights-content">
@@ -164,9 +170,9 @@
             <section id="recommendations-section" class="content-section">
                 <div class="recommendations-header">
                     <div class="search-controls">
-                        <input type="text" id="symbolSearch" class="form-control" placeholder="Search by symbol (e.g., AAPL, TSLA)" />
-                        <button class="btn btn-primary" id="searchBtn">
-                            <span class="btn-icon">🔍</span>
+                        <input type="text" id="symbolSearch" class="form-control form-control-luxury" placeholder="Search by symbol (e.g., AAPL, TSLA)" />
+                        <button class="btn btn-primary btn-luxury btn-premium" id="searchBtn">
+                            <span class="btn-icon btn-icon-luxury">🔍</span>
                             Search
                         </button>
                     </div>
@@ -193,17 +199,17 @@
                 </div>
                 
                 <div class="recommendations-stats">
-                    <div class="stat-card">
-                        <div class="stat-label">Total Recommendations</div>
-                        <div class="stat-value" id="totalRecsCount">-</div>
+                    <div class="stat-card stat-card-luxury">
+                        <div class="stat-label stat-label-luxury">Total Recommendations</div>
+                        <div class="stat-value stat-value-luxury" id="totalRecsCount">-</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Avg. Confidence</div>
-                        <div class="stat-value" id="avgConfidence">-</div>
+                    <div class="stat-card stat-card-luxury">
+                        <div class="stat-label stat-label-luxury">Avg. Confidence</div>
+                        <div class="stat-value stat-value-luxury" id="avgConfidence">-</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-label">Avg. Projected Gain</div>
-                        <div class="stat-value" id="avgProjectedGain">-</div>
+                    <div class="stat-card stat-card-luxury">
+                        <div class="stat-label stat-label-luxury">Avg. Projected Gain</div>
+                        <div class="stat-value stat-value-luxury" id="avgProjectedGain">-</div>
                     </div>
                 </div>
                 
@@ -215,8 +221,8 @@
             <!-- Portfolios Section -->
             <section id="portfolios-section" class="content-section">
                 <div class="portfolios-header">
-                    <button class="btn btn-primary" id="createPortfolioBtn">
-                        <span class="btn-icon">➕</span>
+                    <button class="btn btn-primary btn-luxury btn-premium" id="createPortfolioBtn">
+                        <span class="btn-icon btn-icon-luxury">➕</span>
                         Create New Portfolio
                     </button>
                     <div class="portfolio-actions">
@@ -447,10 +453,10 @@
             <section id="account-section" class="content-section">
                 <div class="account-grid">
                     <!-- Profile Information -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>Profile Information</h3>
-                            <button class="btn btn-sm" id="editProfileBtn">Edit</button>
+                    <div class="card card-luxury">
+                        <div class="card-header card-header-luxury">
+                            <h3 class="card-title-luxury">Profile Information</h3>
+                            <button class="btn btn-sm btn-luxury" id="editProfileBtn">Edit</button>
                         </div>
                         <div class="card-content">
                             <div class="profile-info">
@@ -471,10 +477,10 @@
                     </div>
 
                     <!-- Subscription Management -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>Subscription Plan</h3>
-                            <div class="plan-badge" id="currentPlanBadge">Free</div>
+                    <div class="card card-luxury">
+                        <div class="card-header card-header-luxury">
+                            <h3 class="card-title-luxury">Subscription Plan</h3>
+                            <div class="plan-badge plan-badge-luxury" id="currentPlanBadge">Free</div>
                         </div>
                         <div class="card-content">
                             <div class="subscription-info">
@@ -489,7 +495,7 @@
                                         </ul>
                                     </div>
                                 </div>
-                                <button class="btn btn-primary" id="upgradeBtn" style="margin-top: 16px;">
+                                <button class="btn btn-primary btn-luxury btn-premium" id="upgradeBtn" style="margin-top: 16px;">
                                     Upgrade to Pro
                                 </button>
                             </div>
@@ -497,10 +503,10 @@
                     </div>
 
                     <!-- Usage Statistics -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>Usage Statistics</h3>
-                            <select id="usagePeriod" class="form-select">
+                    <div class="card card-luxury">
+                        <div class="card-header card-header-luxury">
+                            <h3 class="card-title-luxury">Usage Statistics</h3>
+                            <select id="usagePeriod" class="form-select form-select-luxury">
                                 <option value="month">This Month</option>
                                 <option value="week">This Week</option>
                                 <option value="year">This Year</option>
@@ -528,9 +534,9 @@
                     </div>
 
                     <!-- Account Security -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>Security Settings</h3>
+                    <div class="card card-luxury">
+                        <div class="card-header card-header-luxury">
+                            <h3 class="card-title-luxury">Security Settings</h3>
                         </div>
                         <div class="card-content">
                             <div class="security-settings">
@@ -560,9 +566,9 @@
                     </div>
 
                     <!-- Billing Information -->
-                    <div class="card">
-                        <div class="card-header">
-                            <h3>Billing & Payment</h3>
+                    <div class="card card-luxury">
+                        <div class="card-header card-header-luxury">
+                            <h3 class="card-title-luxury">Billing & Payment</h3>
                         </div>
                         <div class="card-content">
                             <div class="billing-info">
@@ -592,12 +598,12 @@
 
     <!-- Create Portfolio Modal -->
     <div id="createPortfolioModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Create New Portfolio</h3>
-                <span class="close">&times;</span>
+        <div class="modal-content modal-content-luxury">
+            <div class="modal-header modal-header-luxury">
+                <h3 class="modal-title-luxury">Create New Portfolio</h3>
+                <span class="close luxury-close">&times;</span>
             </div>
-            <form id="createPortfolioForm" class="portfolio-form">
+            <form id="createPortfolioForm" class="portfolio-form luxury-form">
                 <div class="form-group">
                     <label for="portfolioName">Portfolio Name</label>
                     <input type="text" id="portfolioName" required placeholder="My Investment Portfolio">
@@ -617,7 +623,7 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <button type="submit" class="btn btn-primary btn-full">Create Portfolio</button>
+                    <button type="submit" class="btn btn-primary btn-full btn-luxury btn-premium">Create Portfolio</button>
                 </div>
             </form>
         </div>
