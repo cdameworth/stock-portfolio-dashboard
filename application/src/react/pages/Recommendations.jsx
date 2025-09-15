@@ -16,7 +16,18 @@ import {
   DialogActions,
   List,
   ListItem,
-  ListItemText
+  ListItemText,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  TextField,
+  Slider,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Stack,
+  Alert
 } from '@mui/material';
 import {
   TrendingUp,
@@ -25,11 +36,34 @@ import {
   Timeline,
   Star,
   History,
-  ShowChart
+  ShowChart,
+  FilterList,
+  Sort,
+  ExpandMore,
+  Clear,
+  Warning
 } from '@mui/icons-material';
 import { stockApi } from '../utils/api.js';
 
 function RecommendationCard({ recommendation, onViewHistory }) {
+  // Helper function to safely format prices
+  const formatPrice = (price) => {
+    if (typeof price === 'number') {
+      return price.toFixed(2);
+    }
+    const numPrice = Number(price);
+    return !isNaN(numPrice) ? numPrice.toFixed(2) : 'N/A';
+  };
+
+  // Helper function to safely parse price to number
+  const parsePrice = (price) => {
+    if (typeof price === 'number') {
+      return price;
+    }
+    const numPrice = Number(price);
+    return !isNaN(numPrice) ? numPrice : null;
+  };
+
   const getActionColor = (action) => {
     switch (action) {
       case 'BUY':
@@ -55,9 +89,10 @@ function RecommendationCard({ recommendation, onViewHistory }) {
   };
 
   const calculateGainLoss = () => {
-    if (recommendation.current_price && recommendation.target_price) {
-      const currentPrice = parseFloat(recommendation.current_price);
-      const targetPrice = parseFloat(recommendation.target_price);
+    const currentPrice = parsePrice(recommendation.current_price);
+    const targetPrice = parsePrice(recommendation.target_price);
+
+    if (currentPrice && targetPrice && currentPrice > 0) {
       const percentChange = ((targetPrice - currentPrice) / currentPrice) * 100;
       return {
         value: percentChange.toFixed(2),
@@ -68,7 +103,17 @@ function RecommendationCard({ recommendation, onViewHistory }) {
   };
 
   const gainLoss = calculateGainLoss();
-  const predictionStrength = recommendation.prediction_strength || (recommendation.confidence * 100).toFixed(0);
+
+  // Safe confidence calculation
+  const getConfidence = () => {
+    if (recommendation.prediction_strength) {
+      return recommendation.prediction_strength;
+    }
+    const confidence = parsePrice(recommendation.confidence);
+    return confidence ? (confidence * 100).toFixed(0) : '50';
+  };
+
+  const predictionStrength = getConfidence();
 
   return (
     <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -93,7 +138,7 @@ function RecommendationCard({ recommendation, onViewHistory }) {
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Star fontSize="small" sx={{ color: 'primary.main', mr: 0.5 }} />
               <Typography variant="body2" fontWeight="bold">
-                {Math.round(recommendation.confidence * 10)}/10
+                {Math.round((parsePrice(recommendation.confidence) || 0.5) * 10)}/10
               </Typography>
             </Box>
           </Box>
@@ -105,7 +150,7 @@ function RecommendationCard({ recommendation, onViewHistory }) {
               Target Price
             </Typography>
             <Typography variant="h6" fontWeight="bold">
-              ${recommendation.target_price?.toFixed(2) || 'N/A'}
+              ${formatPrice(recommendation.target_price)}
             </Typography>
           </Box>
           <Box>
@@ -113,7 +158,7 @@ function RecommendationCard({ recommendation, onViewHistory }) {
               Current Price
             </Typography>
             <Typography variant="h6" fontWeight="bold">
-              ${recommendation.current_price?.toFixed(2) || 'N/A'}
+              ${formatPrice(recommendation.current_price)}
             </Typography>
           </Box>
         </Box>
@@ -124,7 +169,8 @@ function RecommendationCard({ recommendation, onViewHistory }) {
             alignItems: 'center', 
             justifyContent: 'center',
             p: 2,
-            backgroundColor: gainLoss.positive ? 'success.light' : 'error.light',
+            backgroundColor: gainLoss.positive ? 'rgba(46, 125, 50, 0.1)' : 'rgba(211, 47, 47, 0.1)',
+            border: `1px solid ${gainLoss.positive ? '#2e7d32' : '#d32f2f'}`,
             borderRadius: 1,
             mb: 2
           }}>
@@ -136,7 +182,7 @@ function RecommendationCard({ recommendation, onViewHistory }) {
               color={gainLoss.positive ? 'success.main' : 'error.main'}>
               {gainLoss.positive ? '+' : ''}{gainLoss.value}%
             </Typography>
-            <Typography variant="body2" sx={{ ml: 1 }} color="text.secondary">
+            <Typography variant="body2" sx={{ ml: 1, color: 'text.primary' }}>
               potential
             </Typography>
           </Box>
@@ -188,7 +234,7 @@ function RecommendationCard({ recommendation, onViewHistory }) {
 
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 2 }}>
           <Typography variant="caption" color="text.secondary">
-            Generated: {new Date(recommendation.timestamp).toLocaleDateString()}
+            Generated: {formatTimestamp(recommendation.timestamp || recommendation.created_at || recommendation.generated_at)}
           </Typography>
           <Button
             size="small"
@@ -204,23 +250,187 @@ function RecommendationCard({ recommendation, onViewHistory }) {
   );
 }
 
+// Helper function to format timestamps safely
+const formatTimestamp = (timestamp) => {
+  if (!timestamp) return 'Unknown';
+
+  const date = new Date(timestamp);
+  // Check if date is valid and not the Unix epoch (1970)
+  if (isNaN(date.getTime()) || date.getFullYear() === 1970) {
+    return 'Recent';
+  }
+
+  return date.toLocaleDateString();
+};
+
+// Helper function to check if recommendation is valid/current
+const isValidRecommendation = (recommendation) => {
+  // Check if current price is reasonable (not 0 or negative)
+  const currentPrice = parseFloat(recommendation.current_price);
+  const targetPrice = parseFloat(recommendation.target_price);
+
+  if (!currentPrice || currentPrice <= 0) return false;
+  if (!targetPrice || targetPrice <= 0) return false;
+
+  // Check if price difference is reasonable (not more than 500% difference)
+  const priceDiff = Math.abs(targetPrice - currentPrice) / currentPrice;
+  if (priceDiff > 5.0) return false; // More than 500% difference seems unrealistic
+
+  // Check if recommendation is not too old (older than 90 days)
+  const timestamp = recommendation.timestamp || recommendation.created_at || recommendation.generated_at;
+  if (timestamp) {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const daysDiff = (now - date) / (1000 * 60 * 60 * 24);
+    if (daysDiff > 90) return false;
+  }
+
+  return true;
+};
+
 function Recommendations() {
   const [recommendations, setRecommendations] = useState([]);
+  const [filteredRecommendations, setFilteredRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState('');
   const [predictionHistory, setPredictionHistory] = useState([]);
 
+  // Filter and sort states
+  const [filterType, setFilterType] = useState('ALL');
+  const [filterRisk, setFilterRisk] = useState('ALL');
+  const [sortBy, setSortBy] = useState('confidence');
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [minConfidence, setMinConfidence] = useState(0);
+  const [searchSymbol, setSearchSymbol] = useState('');
+  const [showExpired, setShowExpired] = useState(false);
+
   useEffect(() => {
     fetchRecommendations();
   }, []);
+
+  // Apply filters and sorting whenever recommendations or filter criteria change
+  useEffect(() => {
+    applyFiltersAndSort();
+  }, [recommendations, filterType, filterRisk, sortBy, sortOrder, minConfidence, searchSymbol, showExpired]);
+
+  const applyFiltersAndSort = () => {
+    let filtered = [...recommendations];
+
+    // Filter out invalid recommendations unless showExpired is true
+    if (!showExpired) {
+      filtered = filtered.filter(isValidRecommendation);
+    }
+
+    // Filter by recommendation type
+    if (filterType !== 'ALL') {
+      filtered = filtered.filter(rec => rec.recommendation_type === filterType);
+    }
+
+    // Filter by risk level
+    if (filterRisk !== 'ALL') {
+      filtered = filtered.filter(rec => rec.risk_level === filterRisk);
+    }
+
+    // Filter by minimum confidence
+    filtered = filtered.filter(rec => {
+      const confidence = parseFloat(rec.confidence) || 0;
+      return confidence >= minConfidence / 100;
+    });
+
+    // Filter by symbol search
+    if (searchSymbol) {
+      filtered = filtered.filter(rec =>
+        rec.symbol.toLowerCase().includes(searchSymbol.toLowerCase())
+      );
+    }
+
+    // Sort recommendations
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+
+      switch (sortBy) {
+        case 'confidence':
+          aValue = parseFloat(a.confidence) || 0;
+          bValue = parseFloat(b.confidence) || 0;
+          break;
+        case 'potential':
+          const aPrice = parseFloat(a.current_price) || 0;
+          const aTarget = parseFloat(a.target_price) || 0;
+          const bPrice = parseFloat(b.current_price) || 0;
+          const bTarget = parseFloat(b.target_price) || 0;
+          aValue = aPrice > 0 ? ((aTarget - aPrice) / aPrice) * 100 : 0;
+          bValue = bPrice > 0 ? ((bTarget - bPrice) / bPrice) * 100 : 0;
+          break;
+        case 'symbol':
+          aValue = a.symbol;
+          bValue = b.symbol;
+          break;
+        case 'price':
+          aValue = parseFloat(a.current_price) || 0;
+          bValue = parseFloat(b.current_price) || 0;
+          break;
+        case 'date':
+          aValue = new Date(a.timestamp || a.created_at || a.generated_at || 0).getTime();
+          bValue = new Date(b.timestamp || b.created_at || b.generated_at || 0).getTime();
+          break;
+        default:
+          aValue = 0;
+          bValue = 0;
+      }
+
+      if (typeof aValue === 'string') {
+        return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+      }
+
+      return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+    });
+
+    setFilteredRecommendations(filtered);
+  };
+
+  const clearFilters = () => {
+    setFilterType('ALL');
+    setFilterRisk('ALL');
+    setSortBy('confidence');
+    setSortOrder('desc');
+    setMinConfidence(0);
+    setSearchSymbol('');
+    setShowExpired(false);
+  };
+
+  const getFilterSummary = () => {
+    const total = recommendations.length;
+    const filtered = filteredRecommendations.length;
+    const invalid = recommendations.filter(rec => !isValidRecommendation(rec)).length;
+
+    return { total, filtered, invalid };
+  };
+
+  // Helper function to deduplicate recommendations by symbol (keep most recent)
+  const deduplicateRecommendations = (recommendations) => {
+    const seen = new Map();
+
+    recommendations.forEach(rec => {
+      const symbol = rec.symbol;
+      const timestamp = new Date(rec.timestamp || rec.created_at || rec.generated_at || Date.now()).getTime();
+
+      if (!seen.has(symbol) || seen.get(symbol).timestamp < timestamp) {
+        seen.set(symbol, { ...rec, timestamp });
+      }
+    });
+
+    return Array.from(seen.values());
+  };
 
   const fetchRecommendations = async () => {
     try {
       const data = await stockApi.getRecommendations();
       if (data?.recommendations) {
-        setRecommendations(data.recommendations);
+        // Deduplicate recommendations by symbol (keep most recent per symbol)
+        const deduplicatedRecommendations = deduplicateRecommendations(data.recommendations);
+        setRecommendations(deduplicatedRecommendations);
       }
     } catch (error) {
       console.error('Failed to fetch recommendations:', error);
@@ -288,13 +498,191 @@ function Recommendations() {
           <CircularProgress size={60} />
         </Box>
       ) : recommendations.length > 0 ? (
-        <Grid container spacing={3}>
-          {recommendations.map((rec, index) => (
-            <Grid item xs={12} md={6} lg={4} key={index}>
-              <RecommendationCard recommendation={rec} onViewHistory={handleViewHistory} />
+        <Box>
+          {/* Filter and Sort Controls */}
+          <Accordion sx={{ mb: 3 }}>
+            <AccordionSummary expandIcon={<ExpandMore />}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <FilterList sx={{ color: 'primary.main' }} />
+                <Typography variant="h6">Filters & Sorting</Typography>
+                <Chip
+                  label={`${getFilterSummary().filtered} of ${getFilterSummary().total}`}
+                  size="small"
+                  color="primary"
+                />
+                {getFilterSummary().invalid > 0 && (
+                  <Chip
+                    icon={<Warning />}
+                    label={`${getFilterSummary().invalid} filtered out`}
+                    size="small"
+                    color="warning"
+                  />
+                )}
+              </Box>
+            </AccordionSummary>
+            <AccordionDetails>
+              <Grid container spacing={3}>
+                {/* Search */}
+                <Grid item xs={12} md={4}>
+                  <TextField
+                    fullWidth
+                    label="Search Symbol"
+                    value={searchSymbol}
+                    onChange={(e) => setSearchSymbol(e.target.value)}
+                    placeholder="e.g., AAPL, TSLA"
+                    size="small"
+                  />
+                </Grid>
+
+                {/* Recommendation Type Filter */}
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Recommendation Type</InputLabel>
+                    <Select
+                      value={filterType}
+                      onChange={(e) => setFilterType(e.target.value)}
+                      label="Recommendation Type"
+                    >
+                      <MenuItem value="ALL">All Types</MenuItem>
+                      <MenuItem value="BUY">Buy</MenuItem>
+                      <MenuItem value="SELL">Sell</MenuItem>
+                      <MenuItem value="HOLD">Hold</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Risk Level Filter */}
+                <Grid item xs={12} md={4}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Risk Level</InputLabel>
+                    <Select
+                      value={filterRisk}
+                      onChange={(e) => setFilterRisk(e.target.value)}
+                      label="Risk Level"
+                    >
+                      <MenuItem value="ALL">All Risk Levels</MenuItem>
+                      <MenuItem value="LOW">Low Risk</MenuItem>
+                      <MenuItem value="MEDIUM">Medium Risk</MenuItem>
+                      <MenuItem value="HIGH">High Risk</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Sort By */}
+                <Grid item xs={12} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Sort By</InputLabel>
+                    <Select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      label="Sort By"
+                    >
+                      <MenuItem value="confidence">Confidence</MenuItem>
+                      <MenuItem value="potential">Potential %</MenuItem>
+                      <MenuItem value="symbol">Symbol</MenuItem>
+                      <MenuItem value="price">Current Price</MenuItem>
+                      <MenuItem value="date">Date</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Sort Order */}
+                <Grid item xs={12} md={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Order</InputLabel>
+                    <Select
+                      value={sortOrder}
+                      onChange={(e) => setSortOrder(e.target.value)}
+                      label="Order"
+                    >
+                      <MenuItem value="desc">Highest First</MenuItem>
+                      <MenuItem value="asc">Lowest First</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                {/* Minimum Confidence Slider */}
+                <Grid item xs={12} md={4}>
+                  <Typography gutterBottom>Minimum Confidence: {minConfidence}%</Typography>
+                  <Slider
+                    value={minConfidence}
+                    onChange={(e, value) => setMinConfidence(value)}
+                    min={0}
+                    max={100}
+                    step={5}
+                    marks={[
+                      { value: 0, label: '0%' },
+                      { value: 50, label: '50%' },
+                      { value: 100, label: '100%' }
+                    ]}
+                  />
+                </Grid>
+
+                {/* Show Expired Toggle */}
+                <Grid item xs={12} md={1}>
+                  <Button
+                    variant={showExpired ? "contained" : "outlined"}
+                    onClick={() => setShowExpired(!showExpired)}
+                    startIcon={<Warning />}
+                    size="small"
+                    fullWidth
+                  >
+                    {showExpired ? 'Hide' : 'Show'} Expired
+                  </Button>
+                </Grid>
+
+                {/* Clear Filters */}
+                <Grid item xs={12} md={1}>
+                  <Button
+                    variant="outlined"
+                    onClick={clearFilters}
+                    startIcon={<Clear />}
+                    size="small"
+                    fullWidth
+                  >
+                    Clear
+                  </Button>
+                </Grid>
+              </Grid>
+            </AccordionDetails>
+          </Accordion>
+
+          {/* Summary Alert */}
+          {getFilterSummary().invalid > 0 && (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              {getFilterSummary().invalid} recommendations were automatically filtered out due to invalid/expired data.
+              Toggle "Show Expired" to view all recommendations.
+            </Alert>
+          )}
+
+          {/* Recommendations Grid */}
+          {filteredRecommendations.length > 0 ? (
+            <Grid container spacing={3}>
+              {filteredRecommendations.map((rec) => (
+                <Grid item xs={12} md={6} lg={4} key={rec.symbol || rec.recommendation_id || Math.random()}>
+                  <RecommendationCard recommendation={rec} onViewHistory={handleViewHistory} />
+                </Grid>
+              ))}
             </Grid>
-          ))}
-        </Grid>
+          ) : (
+            <Paper sx={{ p: 4, textAlign: 'center' }}>
+              <FilterList sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+                No recommendations match your filters
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                Try adjusting your filter criteria or clearing all filters.
+              </Typography>
+              <Button
+                variant="outlined"
+                onClick={clearFilters}
+                startIcon={<Clear />}
+              >
+                Clear All Filters
+              </Button>
+            </Paper>
+          )}
+        </Box>
       ) : (
         <Paper sx={{ p: 6, textAlign: 'center' }}>
           <Psychology sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
@@ -379,9 +767,10 @@ function Recommendations() {
       </Dialog>
     </Box>
   );
+}
 
-  // Helper function for history dialog
-  function getActionColor(action) {
+// Helper function for history dialog
+function getActionColor(action) {
     switch (action) {
       case 'BUY':
         return 'success';
