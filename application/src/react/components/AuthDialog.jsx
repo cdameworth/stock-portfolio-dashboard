@@ -69,6 +69,19 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
     reset();
     setError('');
     setLoading(false);
+    
+    // Proper focus management to prevent aria-hidden issues
+    // Move focus to body element before dialog closes
+    setTimeout(() => {
+      if (document.body && document.body.focus) {
+        document.body.focus();
+      }
+      // Alternative: blur any active element
+      if (document.activeElement && document.activeElement !== document.body) {
+        document.activeElement.blur();
+      }
+    }, 0);
+    
     onClose();
   };
 
@@ -98,6 +111,17 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
         } else {
           localStorage.setItem('authToken', result.token);
           localStorage.setItem('user', JSON.stringify(result.user || { email: data.email }));
+          
+          // Proper focus management before dialog closes
+          setTimeout(() => {
+            if (document.body && document.body.focus) {
+              document.body.focus();
+            }
+            if (document.activeElement && document.activeElement !== document.body) {
+              document.activeElement.blur();
+            }
+          }, 0);
+          
           onSuccess();
         }
       } else {
@@ -116,6 +140,7 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
       onClose={handleClose}
       maxWidth="sm"
       fullWidth
+      disableRestoreFocus={true}
       PaperProps={{
         sx: {
           borderRadius: 2,
@@ -221,7 +246,7 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
             type="submit"
             variant="contained"
             disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} /> : null}
+            startIcon={loading ? <CircularProgress size={20} /> : undefined}
           >
             {loading ? 'Processing...' : 
              type === 'register' ? 'Apply' :

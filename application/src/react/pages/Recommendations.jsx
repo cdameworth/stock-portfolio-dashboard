@@ -622,6 +622,7 @@ function Recommendations() {
                 <Grid item xs={12} md={1}>
                   <Button
                     variant={showExpired ? "contained" : "outlined"}
+                    color="primary"
                     onClick={() => setShowExpired(!showExpired)}
                     startIcon={<Warning />}
                     size="small"
@@ -635,6 +636,7 @@ function Recommendations() {
                 <Grid item xs={12} md={1}>
                   <Button
                     variant="outlined"
+                    color="primary"
                     onClick={clearFilters}
                     startIcon={<Clear />}
                     size="small"
@@ -675,6 +677,7 @@ function Recommendations() {
               </Typography>
               <Button
                 variant="outlined"
+                color="primary"
                 onClick={clearFilters}
                 startIcon={<Clear />}
               >
