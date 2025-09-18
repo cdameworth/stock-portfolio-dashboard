@@ -275,14 +275,14 @@ function AppContent() {
               <Button
                 color="inherit"
                 onClick={() => openAuthDialog('login')}
-                size={{ xs: 'small', sm: 'medium' }}
+                size="small"
               >
                 Member Access
               </Button>
               <Button
                 color="inherit"
                 onClick={() => openAuthDialog('register')}
-                size={{ xs: 'small', sm: 'medium' }}
+                size="small"
               >
                 Apply
               </Button>
