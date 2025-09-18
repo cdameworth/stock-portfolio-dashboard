@@ -239,14 +239,19 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
         </DialogContent>
 
         <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={handleClose} disabled={loading}>
+          <Button
+            onClick={handleClose}
+            disabled={loading}
+            variant="text"
+            color="inherit"
+          >
             Cancel
           </Button>
           <Button
             type="submit"
             variant="contained"
             disabled={loading}
-            startIcon={loading ? <CircularProgress size={20} /> : undefined}
+            {...(loading && { startIcon: <CircularProgress size={20} /> })}
           >
             {loading ? 'Processing...' : 
              type === 'register' ? 'Apply' :

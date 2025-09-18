@@ -39,15 +39,46 @@ function Portfolio() {
   const fetchPortfolio = async () => {
     try {
       const token = localStorage.getItem('authToken') || localStorage.getItem('token');
-      const response = await fetch('/api/portfolios', {
+
+      // First, get the list of user portfolios
+      const portfoliosResponse = await fetch('/api/portfolios', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const updatedPortfolios = [...portfolios];
-        updatedPortfolios[activePortfolio].positions = data.map(item => ({ ...item, id: item.symbol }));
-        setPortfolios(updatedPortfolios);
+      if (portfoliosResponse.ok) {
+        const userPortfolios = await portfoliosResponse.json();
+
+        // If user has portfolios, use them; otherwise create a default
+        if (userPortfolios.length > 0) {
+          const portfoliosWithPositions = await Promise.all(
+            userPortfolios.map(async (portfolio) => {
+              try {
+                const positionsResponse = await fetch(`/api/portfolios/${portfolio.id}/positions`, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const positions = positionsResponse.ok ? await positionsResponse.json() : [];
+                return { ...portfolio, positions };
+              } catch (error) {
+                console.error(`Failed to fetch positions for portfolio ${portfolio.id}:`, error);
+                return { ...portfolio, positions: [] };
+              }
+            })
+          );
+          setPortfolios(portfoliosWithPositions);
+        } else {
+          // No portfolios exist, keep the default one we initialized with
+          const portfolioId = portfolios[activePortfolio].id;
+          const positionsResponse = await fetch(`/api/portfolios/${portfolioId}/positions`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (positionsResponse.ok) {
+            const positions = await positionsResponse.json();
+            const updatedPortfolios = [...portfolios];
+            updatedPortfolios[activePortfolio].positions = positions;
+            setPortfolios(updatedPortfolios);
+          }
+        }
       }
     } catch (error) {
       console.error('Failed to fetch portfolio:', error);
@@ -85,19 +116,33 @@ function Portfolio() {
     }
   };
 
-  const handleCreatePortfolio = () => {
+  const handleCreatePortfolio = async () => {
     if (!newPortfolioName.trim()) {return;}
-    
-    const newPortfolio = {
-      id: `portfolio_${Date.now()}`,
-      name: newPortfolioName.trim(),
-      positions: []
-    };
-    
-    setPortfolios([...portfolios, newPortfolio]);
-    setActivePortfolio(portfolios.length);
-    setCreatePortfolioOpen(false);
-    setNewPortfolioName('');
+
+    try {
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const response = await fetch('/api/portfolios', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: newPortfolioName.trim(),
+          description: `Portfolio created on ${new Date().toLocaleDateString()}`
+        })
+      });
+
+      if (response.ok) {
+        // Refresh the portfolio list
+        await fetchPortfolio();
+        setActivePortfolio(portfolios.length); // Set to the new portfolio
+        setCreatePortfolioOpen(false);
+        setNewPortfolioName('');
+      }
+    } catch (error) {
+      console.error('Failed to create portfolio:', error);
+    }
   };
 
   const searchStocks = async (query) => {
@@ -336,7 +381,7 @@ function Portfolio() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setAddDialogOpen(false)} variant="text">Cancel</Button>
           <Button 
             onClick={handleAddPosition}
             variant="contained"
@@ -361,7 +406,7 @@ function Portfolio() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreatePortfolioOpen(false)}>Cancel</Button>
+          <Button onClick={() => setCreatePortfolioOpen(false)} variant="text">Cancel</Button>
           <Button 
             onClick={handleCreatePortfolio}
             variant="contained"

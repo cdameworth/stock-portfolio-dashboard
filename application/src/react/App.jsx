@@ -355,7 +355,7 @@ function AppContent() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSettingsOpen(false)}>Close</Button>
+          <Button onClick={() => setSettingsOpen(false)} variant="text">Close</Button>
           <Button variant="contained" onClick={() => setSettingsOpen(false)}>
             Save Settings
           </Button>
