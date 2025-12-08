@@ -3,9 +3,25 @@
 *.tfstate.backup
 *.old
 .terraform/
+infrastructure/.terraform/
+infrastructure/*.tfstate*
+infrastructure/tfplan*
+tfplan*
 
 package-lock.json
 node_modules/
 application/node_modules/
 application/package-lock.json
 application/dist/
+application/coverage/
+application/logs/
+application/public/react-dist/
+
+*.serena
+images/*
+
+# Railway
+.railway/
+!.railway/README.md
+!.railway/railway-services.yaml
+!.railway/setup-railway.sh

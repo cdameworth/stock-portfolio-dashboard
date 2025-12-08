@@ -1,0 +1,82 @@
+# Railway Services Configuration Template
+# This file documents the services needed for the Stock Portfolio Dashboard
+# Use this as a reference when setting up your Railway project
+
+services:
+  # Main Application Service
+  app:
+    name: stock-portfolio-app
+    type: dockerfile
+    dockerfile: application/Dockerfile
+    healthcheck:
+      path: /health
+      timeout: 100
+    environment:
+      - NODE_ENV=production
+      - PORT=${{PORT}}
+      - DATABASE_URL=${{Postgres.DATABASE_URL}}
+      - REDIS_URL=${{Redis.REDIS_URL}}
+      - BRANCA_SECRET=<set-in-railway-dashboard>
+      - JWT_SECRET=<set-in-railway-dashboard>
+      - SESSION_SECRET=<set-in-railway-dashboard>
+      - STOCK_ANALYTICS_API_URL=<set-to-your-api-endpoint>
+      - OTEL_EXPORTER_OTLP_ENDPOINT=https://ingest.us.signoz.cloud:443/v1/traces
+      - SIGNOZ_ACCESS_TOKEN=<set-in-railway-dashboard>
+      - OTEL_SERVICE_NAME=stock-portfolio-dashboard
+      - OTEL_SERVICE_VERSION=1.0.0
+    resources:
+      memory: 2048  # 2GB RAM
+      cpu: 1000     # 1 vCPU
+    scaling:
+      minReplicas: 1
+      maxReplicas: 3
+      targetCPU: 70
+      targetMemory: 80
+
+  # PostgreSQL Database Service
+  postgres:
+    name: Postgres
+    type: postgresql
+    version: "16"  # Latest stable version
+    resources:
+      memory: 1024  # 1GB RAM
+    # Railway automatically provides these environment variables:
+    # - DATABASE_URL
+    # - PGHOST
+    # - PGPORT
+    # - PGDATABASE
+    # - PGUSER
+    # - PGPASSWORD
+
+  # Redis Cache Service
+  redis:
+    name: Redis
+    type: redis
+    version: "7"  # Latest stable version
+    resources:
+      memory: 512   # 512MB RAM
+    # Railway automatically provides these environment variables:
+    # - REDIS_URL
+    # - REDIS_HOST
+    # - REDIS_PORT
+
+# Service Dependencies
+# The app service depends on both Postgres and Redis
+# Railway will ensure these are started before the app
+dependencies:
+  app:
+    - postgres
+    - redis
+
+# Deployment Strategy
+deployment:
+  strategy: rolling
+  zeroDowntime: true
+  healthcheckGracePeriod: 30
+
+# Notes:
+# - All services are deployed in the same Railway project
+# - Services communicate via Railway's private networking
+# - Environment variables are automatically shared between services using ${{ServiceName.VARIABLE}} syntax
+# - Public domain is automatically assigned to the app service
+# - PostgreSQL and Redis are accessible only within the Railway private network

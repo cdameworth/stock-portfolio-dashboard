@@ -1,6 +1,6 @@
-# Stock Portfolio Dashboard - Overwatch Demo Application
+# Stock Portfolio Dashboard - Professional Investment Management
 
-A modern web application that consumes the Stock Analytics Engine API to provide an interactive dashboard for stock portfolio management and AI-powered investment recommendations, hosted on AWS ECS Fargate with comprehensive observability.
+A sophisticated web application featuring professional black-tie design that provides an interactive dashboard for stock portfolio management and AI-powered investment recommendations, hosted on AWS ECS Fargate ARM64 with comprehensive observability.
 
 ## 🏗️ Architecture Overview
 
@@ -8,7 +8,7 @@ This application demonstrates a containerized microservices architecture for web
 
 ### Core Components
 
-- **ECS Fargate**: Containerized web application with auto-scaling
+- **ECS Fargate ARM64**: Cost-efficient containerized web application with auto-scaling
 - **Application Load Balancer**: High-availability traffic distribution with WAF protection
 - **RDS Aurora**: PostgreSQL cluster for user data and portfolios
 - **ElastiCache Redis**: Session storage and API response caching
@@ -29,9 +29,10 @@ This application demonstrates a containerized microservices architecture for web
 - **System Status**: Real-time health monitoring of all services
 
 ### User Experience
+- **Professional Design**: Sophisticated black-tie theme for financial professionals
 - **Responsive Design**: Optimized for desktop and mobile devices
 - **Real-time Updates**: Server-Sent Events for live data streaming
-- **Dark/Light Theme**: User preference-based theme switching
+- **AdSense Integration**: Compliant advertising for freemium model
 - **Performance Optimized**: CDN delivery and aggressive caching
 
 ### API Integration
@@ -80,16 +81,39 @@ EXPOSE 3000
 CMD ["npm", "start"]
 ```
 
-### Terraform Deployment
+### Deployment Options
+
+#### Option 1: AWS ECS Fargate (Terraform)
 
 ```bash
-# Deploy infrastructure
+# Deploy infrastructure (run from infrastructure directory)
+cd infrastructure
 terraform init
 terraform apply -var="stock_analytics_api_url=https://your-api-url"
 
 # Get load balancer DNS
 terraform output load_balancer_dns
 ```
+
+#### Option 2: Railway (Recommended for Quick Deploy)
+
+Railway provides a simpler deployment experience with automatic PostgreSQL and Redis provisioning.
+
+```bash
+# Quick start with automated setup
+./.railway/setup-railway.sh
+
+# Or manual Railway deployment
+railway login
+railway init
+railway add  # Select PostgreSQL
+railway add  # Select Redis
+railway up
+```
+
+**📚 See complete Railway deployment guide:** `claudedocs/RAILWAY_DEPLOYMENT.md`
+
+**Quick Reference:** `.railway/QUICK_REFERENCE.md`
 
 ## 🚀 API Endpoints
 
