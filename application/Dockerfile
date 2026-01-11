@@ -22,9 +22,8 @@ RUN mkdir -p logs
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Change ownership only for essential directories
-RUN chown -R nodejs:nodejs /app/logs 2>/dev/null || true && \
-    chown nodejs:nodejs /app
+# Change ownership of all app files to nodejs user
+RUN chown -R nodejs:nodejs /app
 USER nodejs
 
 # Expose port
