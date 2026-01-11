@@ -183,7 +183,10 @@ class DatabaseService {
             WHEN r.estimated_hit_date <= CURRENT_DATE + INTERVAL '7 days' THEN 'DUE_SOON'
             ELSE 'ON_TRACK'
           END as hit_status,
-          EXTRACT(DAY FROM (r.estimated_hit_date - CURRENT_DATE)) as days_until_hit
+          CASE
+            WHEN r.estimated_hit_date IS NOT NULL THEN EXTRACT(DAY FROM (r.estimated_hit_date::timestamp - CURRENT_DATE::timestamp))
+            ELSE NULL
+          END as days_until_hit
         FROM recommendations r
         WHERE 1=1
       `;
