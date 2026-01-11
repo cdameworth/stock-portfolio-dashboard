@@ -1,17 +1,13 @@
 # Stock Portfolio Dashboard - Dockerfile
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 RUN apk add --no-cache curl
 # Copy package files
 COPY package*.json ./
 
-# RUN npm ci --only=production && npm cache clean --force
-RUN if [ -f package-lock.json ]; then \
-      echo "Lockfile found -> npm ci"; npm ci --omit=dev; \
-    else \
-      echo "No lockfile -> npm install"; npm install --omit=dev; \
-    fi && npm cache clean --force
+# Install all dependencies including dev dependencies for build
+RUN npm install --legacy-peer-deps && npm cache clean --force
 
 # Copy application code
 COPY . .
@@ -23,8 +19,9 @@ RUN mkdir -p logs
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Change ownership
-RUN chown -R nodejs:nodejs /app
+# Change ownership only for essential directories
+RUN chown -R nodejs:nodejs /app/logs 2>/dev/null || true && \
+    chown nodejs:nodejs /app
 USER nodejs
 
 # Expose port

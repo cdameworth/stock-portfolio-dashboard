@@ -3,6 +3,9 @@
  * Express.js application that serves the web dashboard
  */
 
+// IMPORTANT: Initialize OpenTelemetry FIRST before any other modules
+require('./tracing');
+
 const express = require('express');
 const path = require('path');
 const helmet = require('helmet');
@@ -33,6 +36,15 @@ const AuthService = require('./services/auth-service');
 const AIPerformanceService = require('./services/ai-performance-service');
 const DatabaseService = require('./services/database-service');
 const RecommendationSyncService = require('./services/recommendation-sync-service');
+// Import business metrics
+const { businessMetrics } = require('./business-metrics');
+
+// Import browser telemetry middleware
+const {
+  processBrowserTelemetry,
+  extractCorrelationHeaders,
+  addBrowserCorrelation
+} = require('./middleware/browser-telemetry');
 
 // Initialize Express app
 const app = express();
@@ -102,24 +114,36 @@ const databaseService = new DatabaseService({
   password: process.env.DB_PASSWORD
 });
 
-// Initialize Redis client for caching (following official documentation)
-const redisClient = redis.createClient({
-  url: process.env.REDIS_URL || 'redis://localhost:6379',
-  socket: {
-    reconnectStrategy: (retries) => {
-      // Exponential backoff with jitter (from official docs)
-      const jitter = Math.floor(Math.random() * 200);
-      const delay = Math.min(Math.pow(2, retries) * 50, 2000);
-      return delay + jitter;
+// Initialize Redis client for caching (optional - falls back to node-cache if unavailable)
+const NodeCache = require('node-cache');
+const memoryCache = new NodeCache({ stdTTL: 300, checkperiod: 60 });
+
+let redisClient = null;
+let useRedis = false;
+
+if (process.env.REDIS_URL) {
+  redisClient = redis.createClient({
+    url: process.env.REDIS_URL,
+    socket: {
+      reconnectStrategy: (retries) => {
+        // Exponential backoff with jitter (from official docs)
+        const jitter = Math.floor(Math.random() * 200);
+        const delay = Math.min(Math.pow(2, retries) * 50, 2000);
+        return delay + jitter;
+      }
     }
-  }
-})
-  .on('error', (err) => {
-    logger.error('Redis Client Error', err);
   })
-  .on('connect', () => {
-    logger.info('Redis client connected');
-  });
+    .on('error', (err) => {
+      logger.error('Redis Client Error - falling back to memory cache', err);
+      useRedis = false;
+    })
+    .on('connect', () => {
+      logger.info('Redis client connected');
+      useRedis = true;
+    });
+} else {
+  logger.info('No REDIS_URL configured - using in-memory cache (node-cache)');
+}
 
 // Initialize recommendation sync service
 const recommendationSyncService = new RecommendationSyncService({
@@ -169,6 +193,10 @@ app.use(limiter);
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Browser telemetry correlation middleware
+app.use(extractCorrelationHeaders);
+app.use(addBrowserCorrelation);
 
 // Session configuration
 // Request logging
@@ -346,16 +374,19 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
     const result = await authService.generatePasswordResetToken(email);
-    
+
     // In a real app, you'd send an email here
     logger.info(`Password reset requested for ${email}`);
-    
+
     res.json({ message: 'Password reset link sent' });
   } catch (error) {
     logger.error('Forgot password error:', error);
     res.status(400).json({ error: error.message });
   }
 });
+
+// Browser telemetry endpoint
+app.post('/api/telemetry/browser', processBrowserTelemetry);
 
 // API Routes
 
@@ -367,20 +398,27 @@ app.get('/api/recommendations', async (req, res) => {
     // Allow up to 100 recommendations per request for comprehensive data
     const parsedLimit = Math.min(parseInt(limit) || 100, 100);
     
-    // Check Redis cache first
+    // Check cache first (Redis or memory cache)
     const cacheKey = `recommendations:${type || 'all'}:${risk || 'all'}:${parsedLimit}:${min_confidence || 0}`;
     let recommendations;
-    
+
     try {
-      if (redisClient.isReady) {
+      if (redisClient && redisClient.isReady) {
         const cached = await redisClient.get(cacheKey);
         if (cached) {
-          logger.info('Returning cached recommendations');
+          logger.info('Returning cached recommendations from Redis');
           return res.json(JSON.parse(cached));
+        }
+      } else {
+        // Use memory cache as fallback
+        const cached = memoryCache.get(cacheKey);
+        if (cached) {
+          logger.info('Returning cached recommendations from memory cache');
+          return res.json(cached);
         }
       }
     } catch (cacheError) {
-      logger.warn('Redis cache read failed:', cacheError.message);
+      logger.warn('Cache read failed:', cacheError.message);
     }
     
     // Try database first if available and requested
@@ -426,13 +464,16 @@ app.get('/api/recommendations', async (req, res) => {
       };
     }
     
-    // Cache the result in Redis for 5 minutes
+    // Cache the result for 5 minutes
     try {
-      if (redisClient.isReady) {
+      if (redisClient && redisClient.isReady) {
         await redisClient.setEx(cacheKey, 300, JSON.stringify(recommendations));
+      } else {
+        // Use memory cache as fallback
+        memoryCache.set(cacheKey, recommendations);
       }
     } catch (cacheError) {
-      logger.warn('Redis cache write failed:', cacheError.message);
+      logger.warn('Cache write failed:', cacheError.message);
     }
     
     // Track API usage
@@ -482,42 +523,279 @@ app.get('/api/stocks/search', async (req, res) => {
       return res.status(400).json({ error: 'Query parameter "q" is required' });
     }
 
-    // Simple stock search - in a real app this would query a proper stock database
-    // For now, return a basic search result based on common symbols
-    const commonStocks = [
-      { symbol: 'AAPL', name: 'Apple Inc.' },
-      { symbol: 'GOOGL', name: 'Alphabet Inc.' },
-      { symbol: 'MSFT', name: 'Microsoft Corporation' },
-      { symbol: 'AMZN', name: 'Amazon.com Inc.' },
-      { symbol: 'TSLA', name: 'Tesla Inc.' },
-      { symbol: 'META', name: 'Meta Platforms Inc.' },
-      { symbol: 'NVDA', name: 'NVIDIA Corporation' },
-      { symbol: 'NFLX', name: 'Netflix Inc.' },
-      { symbol: 'DDOG', name: 'Datadog Inc.' },
-      { symbol: 'SNOW', name: 'Snowflake Inc.' },
-      { symbol: 'PLTR', name: 'Palantir Technologies Inc.' },
-      { symbol: 'ZM', name: 'Zoom Video Communications' },
-      { symbol: 'DOCU', name: 'DocuSign Inc.' },
-      { symbol: 'CRWD', name: 'CrowdStrike Holdings Inc.' },
-      { symbol: 'OKTA', name: 'Okta Inc.' },
-      { symbol: 'TWLO', name: 'Twilio Inc.' },
-      { symbol: 'NOW', name: 'ServiceNow Inc.' },
-      { symbol: 'AVGO', name: 'Broadcom Inc.' },
-      { symbol: 'QCOM', name: 'Qualcomm Inc.' },
-      { symbol: 'ADSK', name: 'Autodesk Inc.' },
-      { symbol: 'CDNS', name: 'Cadence Design Systems Inc.' }
-    ];
+    const query = q.trim().toUpperCase();
+    let results = [];
 
-    const query = q.toLowerCase();
-    const results = commonStocks.filter(stock =>
-      stock.symbol.toLowerCase().includes(query) ||
-      stock.name.toLowerCase().includes(query)
-    ).slice(0, 10); // Limit to 10 results
+    try {
+      // Try Yahoo Finance search first
+      const searchUrl = `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(query)}&lang=en-US&region=US&quotesCount=10&newsCount=0`;
+      const response = await fetch(searchUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        },
+        timeout: 5000
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.quotes && Array.isArray(data.quotes)) {
+          results = data.quotes
+            .filter(quote =>
+              quote.symbol &&
+              quote.shortname &&
+              (quote.typeDisp === 'Equity' || quote.quoteType === 'EQUITY' || !quote.typeDisp) &&
+              !quote.symbol.includes('=') && // Filter out currency pairs
+              !quote.symbol.includes('^') && // Filter out indices
+              quote.symbol.match(/^[A-Z]{1,5}$/) // Only allow 1-5 letter symbols
+            )
+            .slice(0, 10)
+            .map(quote => ({
+              symbol: quote.symbol,
+              name: quote.shortname || quote.longname || `${quote.symbol} Corporation`,
+              exchange: quote.exchange || 'NASDAQ'
+            }));
+        }
+      }
+    } catch (apiError) {
+      console.log('Yahoo Finance API search failed, using fallback:', apiError.message);
+    }
+
+    // If no results from API, provide comprehensive fallback
+    if (results.length === 0) {
+      const comprehensiveStocks = [
+        // Major Tech
+        { symbol: 'AAPL', name: 'Apple Inc.', exchange: 'NASDAQ' },
+        { symbol: 'MSFT', name: 'Microsoft Corporation', exchange: 'NASDAQ' },
+        { symbol: 'GOOGL', name: 'Alphabet Inc. Class A', exchange: 'NASDAQ' },
+        { symbol: 'GOOG', name: 'Alphabet Inc. Class C', exchange: 'NASDAQ' },
+        { symbol: 'AMZN', name: 'Amazon.com Inc.', exchange: 'NASDAQ' },
+        { symbol: 'META', name: 'Meta Platforms Inc.', exchange: 'NASDAQ' },
+        { symbol: 'TSLA', name: 'Tesla Inc.', exchange: 'NASDAQ' },
+        { symbol: 'NVDA', name: 'NVIDIA Corporation', exchange: 'NASDAQ' },
+        { symbol: 'NFLX', name: 'Netflix Inc.', exchange: 'NASDAQ' },
+        { symbol: 'AMD', name: 'Advanced Micro Devices Inc.', exchange: 'NASDAQ' },
+        { symbol: 'INTC', name: 'Intel Corporation', exchange: 'NASDAQ' },
+        { symbol: 'AVGO', name: 'Broadcom Inc.', exchange: 'NASDAQ' },
+        { symbol: 'QCOM', name: 'Qualcomm Inc.', exchange: 'NASDAQ' },
+        { symbol: 'ADBE', name: 'Adobe Inc.', exchange: 'NASDAQ' },
+        { symbol: 'CRM', name: 'Salesforce Inc.', exchange: 'NYSE' },
+        { symbol: 'ORCL', name: 'Oracle Corporation', exchange: 'NYSE' },
+        { symbol: 'NOW', name: 'ServiceNow Inc.', exchange: 'NYSE' },
+        { symbol: 'SNOW', name: 'Snowflake Inc.', exchange: 'NYSE' },
+        { symbol: 'PLTR', name: 'Palantir Technologies Inc.', exchange: 'NYSE' },
+        { symbol: 'DDOG', name: 'Datadog Inc.', exchange: 'NASDAQ' },
+
+        // Financial & Traditional
+        { symbol: 'BRK.B', name: 'Berkshire Hathaway Inc. Class B', exchange: 'NYSE' },
+        { symbol: 'JPM', name: 'JPMorgan Chase & Co.', exchange: 'NYSE' },
+        { symbol: 'BAC', name: 'Bank of America Corp.', exchange: 'NYSE' },
+        { symbol: 'WFC', name: 'Wells Fargo & Co.', exchange: 'NYSE' },
+        { symbol: 'GS', name: 'Goldman Sachs Group Inc.', exchange: 'NYSE' },
+        { symbol: 'MS', name: 'Morgan Stanley', exchange: 'NYSE' },
+        { symbol: 'V', name: 'Visa Inc.', exchange: 'NYSE' },
+        { symbol: 'MA', name: 'Mastercard Inc.', exchange: 'NYSE' },
+        { symbol: 'PYPL', name: 'PayPal Holdings Inc.', exchange: 'NASDAQ' },
+
+        // Healthcare & Pharma
+        { symbol: 'JNJ', name: 'Johnson & Johnson', exchange: 'NYSE' },
+        { symbol: 'PFE', name: 'Pfizer Inc.', exchange: 'NYSE' },
+        { symbol: 'MRNA', name: 'Moderna Inc.', exchange: 'NASDAQ' },
+        { symbol: 'ABBV', name: 'AbbVie Inc.', exchange: 'NYSE' },
+        { symbol: 'TMO', name: 'Thermo Fisher Scientific Inc.', exchange: 'NYSE' },
+
+        // Consumer & Retail
+        { symbol: 'WMT', name: 'Walmart Inc.', exchange: 'NYSE' },
+        { symbol: 'TGT', name: 'Target Corporation', exchange: 'NYSE' },
+        { symbol: 'HD', name: 'Home Depot Inc.', exchange: 'NYSE' },
+        { symbol: 'LOW', name: 'Lowe\'s Companies Inc.', exchange: 'NYSE' },
+        { symbol: 'COST', name: 'Costco Wholesale Corporation', exchange: 'NASDAQ' },
+        { symbol: 'SBUX', name: 'Starbucks Corporation', exchange: 'NASDAQ' },
+        { symbol: 'MCD', name: 'McDonald\'s Corporation', exchange: 'NYSE' },
+        { symbol: 'NKE', name: 'Nike Inc.', exchange: 'NYSE' },
+        { symbol: 'DIS', name: 'Walt Disney Company', exchange: 'NYSE' },
+
+        // Energy & Materials
+        { symbol: 'XOM', name: 'Exxon Mobil Corporation', exchange: 'NYSE' },
+        { symbol: 'CVX', name: 'Chevron Corporation', exchange: 'NYSE' },
+        { symbol: 'COP', name: 'ConocoPhillips', exchange: 'NYSE' },
+
+        // Transportation & Delivery
+        { symbol: 'UPS', name: 'United Parcel Service Inc.', exchange: 'NYSE' },
+        { symbol: 'FDX', name: 'FedEx Corporation', exchange: 'NYSE' },
+        { symbol: 'UBER', name: 'Uber Technologies Inc.', exchange: 'NYSE' },
+        { symbol: 'LYFT', name: 'Lyft Inc.', exchange: 'NASDAQ' },
+        { symbol: 'DASH', name: 'DoorDash Inc.', exchange: 'NYSE' },
+
+        // Communication & Media
+        { symbol: 'T', name: 'AT&T Inc.', exchange: 'NYSE' },
+        { symbol: 'VZ', name: 'Verizon Communications Inc.', exchange: 'NYSE' },
+        { symbol: 'CMCSA', name: 'Comcast Corporation', exchange: 'NASDAQ' },
+        { symbol: 'TWTR', name: 'Twitter Inc.', exchange: 'NYSE' },
+        { symbol: 'SNAP', name: 'Snap Inc.', exchange: 'NYSE' },
+        { symbol: 'PINS', name: 'Pinterest Inc.', exchange: 'NYSE' },
+
+        // ETFs
+        { symbol: 'SPY', name: 'SPDR S&P 500 ETF Trust', exchange: 'NYSE' },
+        { symbol: 'QQQ', name: 'Invesco QQQ Trust', exchange: 'NASDAQ' },
+        { symbol: 'IWM', name: 'iShares Russell 2000 ETF', exchange: 'NYSE' },
+        { symbol: 'VTI', name: 'Vanguard Total Stock Market ETF', exchange: 'NYSE' },
+        { symbol: 'VOO', name: 'Vanguard S&P 500 ETF', exchange: 'NYSE' }
+      ];
+
+      const queryLower = query.toLowerCase();
+      results = comprehensiveStocks.filter(stock =>
+        stock.symbol.toLowerCase().includes(queryLower) ||
+        stock.name.toLowerCase().includes(queryLower)
+      ).slice(0, 10);
+    }
+
+    // If still no results and query looks like a valid symbol, allow it
+    if (results.length === 0 && query.match(/^[A-Z]{1,5}$/)) {
+      results = [{
+        symbol: query,
+        name: `${query} Corporation`,
+        exchange: 'UNKNOWN'
+      }];
+    }
+
+    // Track stock search metrics
+    businessMetrics.trackStockOperation('search', {
+      query: q,
+      results_count: results.length,
+      search_type: 'comprehensive'
+    });
 
     res.json({ results });
   } catch (error) {
     logger.error('Error searching stocks:', error);
     res.status(500).json({ error: 'Failed to search stocks' });
+  }
+});
+
+// Custom stock request endpoint
+app.post('/api/stocks/:symbol/request', authMiddleware, async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const { analysisType, timeframe, priority } = req.body;
+
+    if (!symbol) {
+      return res.status(400).json({
+        success: false,
+        error: 'Symbol parameter is required'
+      });
+    }
+
+    const options = {
+      userId: req.user.userId,
+      source: 'portfolio_webapp',
+      analysisType,
+      timeframe,
+      priority
+    };
+
+    const result = await stockService.requestCustomStock(symbol, options);
+
+    metricsService.incrementCounter('api_requests_total', { endpoint: 'custom_stock_request' });
+
+    if (result.success) {
+      res.status(201).json(result);
+    } else {
+      res.status(result.status === 'rejected' ? 400 : 503).json(result);
+    }
+
+  } catch (error) {
+    logger.error(`Error requesting custom stock analysis for ${req.params.symbol}:`, error);
+    metricsService.incrementCounter('api_errors_total', { endpoint: 'custom_stock_request' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to request custom stock analysis'
+    });
+  }
+});
+
+// Get custom stock request status
+app.get('/api/stocks/requests/:requestId', authMiddleware, async (req, res) => {
+  try {
+    const { requestId } = req.params;
+
+    if (!requestId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Request ID parameter is required'
+      });
+    }
+
+    const result = await stockService.getCustomRequestStatus(requestId);
+
+    metricsService.incrementCounter('api_requests_total', { endpoint: 'custom_request_status' });
+
+    if (result.success) {
+      res.json(result);
+    } else {
+      res.status(404).json(result);
+    }
+
+  } catch (error) {
+    logger.error(`Error getting custom request status for ${req.params.requestId}:`, error);
+    metricsService.incrementCounter('api_errors_total', { endpoint: 'custom_request_status' });
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get custom request status'
+    });
+  }
+});
+
+// Stock price endpoint
+app.get('/api/stocks/:symbol/price', authMiddleware, async (req, res) => {
+  try {
+    const { symbol } = req.params;
+
+    if (!symbol) {
+      return res.status(400).json({
+        success: false,
+        error: 'Symbol parameter is required'
+      });
+    }
+
+    // Get real-time current stock price from Yahoo Finance via AIPerformanceService
+    const currentPrice = await aiPerformanceService.getCurrentPrice(symbol);
+
+    if (!currentPrice) {
+      return res.status(404).json({
+        success: false,
+        error: `No current price data available for symbol ${symbol}`
+      });
+    }
+
+    // Price is the real-time value from Yahoo Finance
+    const price = currentPrice;
+
+    metricsService.incrementCounter('api_requests_total', { endpoint: 'stock_price' });
+
+    // Track stock price lookup metrics
+    businessMetrics.trackStockOperation('price_lookup', {
+      symbol: symbol.toUpperCase(),
+      price: price,
+      source: 'yahoo_finance'
+    });
+
+    res.json({
+      success: true,
+      data: {
+        symbol: symbol.toUpperCase(),
+        price: price,
+        timestamp: new Date().toISOString(),
+        source: 'yahoo_finance'
+      }
+    });
+  } catch (error) {
+    logger.error(`Error getting price for ${req.params.symbol}:`, error);
+    metricsService.incrementCounter('api_errors_total', { endpoint: 'stock_price' });
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get stock price'
+    });
   }
 });
 
@@ -591,6 +869,22 @@ app.delete('/api/portfolios/:portfolioId', authMiddleware, async (req, res) => {
   }
 });
 
+// Get portfolio positions
+app.get('/api/portfolios/:portfolioId/positions', authMiddleware, async (req, res) => {
+  try {
+    const { portfolioId } = req.params;
+
+    const positions = await portfolioService.getPortfolioPositions(req.user.userId, portfolioId);
+
+    metricsService.incrementCounter('api_requests_total', { endpoint: 'get_positions' });
+    res.json(positions);
+  } catch (error) {
+    logger.error('Error getting portfolio positions:', error);
+    metricsService.incrementCounter('api_errors_total', { endpoint: 'get_positions' });
+    res.status(500).json({ error: 'Failed to get portfolio positions' });
+  }
+});
+
 // Add position to portfolio
 app.post('/api/portfolios/:portfolioId/positions', authMiddleware, async (req, res) => {
   try {
@@ -608,6 +902,49 @@ app.post('/api/portfolios/:portfolioId/positions', authMiddleware, async (req, r
     logger.error('Error adding position:', error);
     metricsService.incrementCounter('api_errors_total', { endpoint: 'add_position' });
     res.status(500).json({ error: 'Failed to add position' });
+  }
+});
+
+// Update position in portfolio
+app.put('/api/portfolios/:portfolioId/positions/:symbol', authMiddleware, async (req, res) => {
+  try {
+    const { portfolioId, symbol } = req.params;
+    const { shares } = req.body;
+
+    const position = await portfolioService.updatePosition(req.user.userId, portfolioId, symbol.toUpperCase(), {
+      shares: parseInt(shares)
+    });
+
+    metricsService.incrementCounter('api_requests_total', { endpoint: 'update_position' });
+    res.json(position);
+  } catch (error) {
+    logger.error('Error updating position:', error);
+    metricsService.incrementCounter('api_errors_total', { endpoint: 'update_position' });
+    if (error.message.includes('not found')) {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to update position' });
+    }
+  }
+});
+
+// Remove position from portfolio
+app.delete('/api/portfolios/:portfolioId/positions/:symbol', authMiddleware, async (req, res) => {
+  try {
+    const { portfolioId, symbol } = req.params;
+
+    const result = await portfolioService.removePosition(req.user.userId, portfolioId, symbol.toUpperCase());
+
+    metricsService.incrementCounter('api_requests_total', { endpoint: 'remove_position' });
+    res.json(result);
+  } catch (error) {
+    logger.error('Error removing position:', error);
+    metricsService.incrementCounter('api_errors_total', { endpoint: 'remove_position' });
+    if (error.message.includes('not found')) {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: 'Failed to remove position' });
+    }
   }
 });
 
@@ -952,12 +1289,18 @@ process.on('SIGINT', async () => {
 
 // Start server
 app.listen(PORT, '0.0.0.0', async () => {
-  // Connect to Redis (non-blocking, following official docs)
-  redisClient.connect().then(() => {
-    logger.info('Redis connected successfully');
-  }).catch((error) => {
-    logger.warn('Redis connection failed, continuing without cache:', error.message);
-  });
+  // Connect to Redis if configured (non-blocking)
+  if (redisClient) {
+    redisClient.connect().then(() => {
+      logger.info('Redis connected successfully');
+      useRedis = true;
+    }).catch((error) => {
+      logger.warn('Redis connection failed, using memory cache:', error.message);
+      useRedis = false;
+    });
+  } else {
+    logger.info('Using in-memory cache (node-cache) - Redis not configured');
+  }
   logger.info(`Stock Portfolio Dashboard running on port ${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`Stock Analytics API: ${process.env.STOCK_ANALYTICS_API_URL || 'not configured'}`);
