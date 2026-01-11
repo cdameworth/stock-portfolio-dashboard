@@ -16,6 +16,9 @@ RUN if [ -f package-lock.json ]; then \
 # Copy application code
 COPY . .
 
+# Create logs directory
+RUN mkdir -p logs
+
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
