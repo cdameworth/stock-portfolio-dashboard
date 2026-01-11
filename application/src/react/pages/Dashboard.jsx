@@ -395,7 +395,9 @@ function Dashboard() {
           <Paper sx={{
             p: { xs: 2, sm: 3 },
             height: { xs: 'auto', md: 300 },
-            minHeight: { xs: 'auto', md: 300 }
+            minHeight: { xs: 'auto', md: 300 },
+            minWidth: 0,
+            overflow: 'hidden'
           }}>
             <Typography
               variant="h6"
@@ -407,7 +409,13 @@ function Dashboard() {
             >
               Major Market Indices
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2 } }}>
+            <Box sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: { xs: 1.5, sm: 2 },
+              minWidth: 0,
+              overflow: 'hidden'
+            }}>
               <Box sx={{
                 display: 'flex',
                 justifyContent: 'space-between',
@@ -418,18 +426,20 @@ function Dashboard() {
                 borderRadius: 1,
                 flexDirection: { xs: 'column', sm: 'row' },
                 textAlign: { xs: 'center', sm: 'left' },
-                gap: { xs: 1, sm: 0 }
+                gap: { xs: 1, sm: 2 },
+                minWidth: 0,
+                overflow: 'hidden'
               }}>
-                <Box>
-                  <Typography variant="subtitle1" fontWeight="bold">S&P 500</Typography>
-                  <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
+                <Box sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                  <Typography variant="subtitle1" fontWeight="bold" noWrap>S&P 500</Typography>
+                  <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} noWrap>
                     {marketIndices.sp500.value.toLocaleString()}
                   </Typography>
                 </Box>
                 <Typography
                   variant="h6"
                   color={marketIndices.sp500.change >= 0 ? 'success.main' : 'error.main'}
-                  sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+                  sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' }, whiteSpace: 'nowrap', flexShrink: 0 }}
                 >
                   {marketIndices.sp500.change >= 0 ? '+' : ''}{marketIndices.sp500.change}%
                 </Typography>
@@ -445,18 +455,20 @@ function Dashboard() {
                 borderRadius: 1,
                 flexDirection: { xs: 'column', sm: 'row' },
                 textAlign: { xs: 'center', sm: 'left' },
-                gap: { xs: 1, sm: 0 }
+                gap: { xs: 1, sm: 2 },
+                minWidth: 0,
+                overflow: 'hidden'
               }}>
-                <Box>
-                  <Typography variant="subtitle1" fontWeight="bold">NASDAQ</Typography>
-                  <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
+                <Box sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                  <Typography variant="subtitle1" fontWeight="bold" noWrap>NASDAQ</Typography>
+                  <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} noWrap>
                     {marketIndices.nasdaq.value.toLocaleString()}
                   </Typography>
                 </Box>
                 <Typography
                   variant="h6"
                   color={marketIndices.nasdaq.change >= 0 ? 'success.main' : 'error.main'}
-                  sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+                  sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' }, whiteSpace: 'nowrap', flexShrink: 0 }}
                 >
                   {marketIndices.nasdaq.change >= 0 ? '+' : ''}{marketIndices.nasdaq.change}%
                 </Typography>
@@ -472,18 +484,20 @@ function Dashboard() {
                 borderRadius: 1,
                 flexDirection: { xs: 'column', sm: 'row' },
                 textAlign: { xs: 'center', sm: 'left' },
-                gap: { xs: 1, sm: 0 }
+                gap: { xs: 1, sm: 2 },
+                minWidth: 0,
+                overflow: 'hidden'
               }}>
-                <Box>
-                  <Typography variant="subtitle1" fontWeight="bold">Dow Jones</Typography>
-                  <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
+                <Box sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                  <Typography variant="subtitle1" fontWeight="bold" noWrap>Dow Jones</Typography>
+                  <Typography variant="h5" sx={{ fontSize: { xs: '1.25rem', sm: '1.5rem' } }} noWrap>
                     {marketIndices.dow.value.toLocaleString()}
                   </Typography>
                 </Box>
                 <Typography
                   variant="h6"
                   color={marketIndices.dow.change >= 0 ? 'success.main' : 'error.main'}
-                  sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' } }}
+                  sx={{ fontSize: { xs: '1.1rem', sm: '1.25rem' }, whiteSpace: 'nowrap', flexShrink: 0 }}
                 >
                   {marketIndices.dow.change >= 0 ? '+' : ''}{marketIndices.dow.change}%
                 </Typography>

@@ -8,6 +8,8 @@ import AuthDialog from './components/AuthDialog.jsx';
 import DashboardPage from './pages/Dashboard.jsx';
 import Portfolio from './pages/Portfolio.jsx';
 import Recommendations from './pages/Recommendations.jsx';
+import { useAuthTracing, usePerformanceTracing } from './utils/useTracing.js';
+import { browserTracer } from './services/browser-tracing.js';
 
 // Main App Content Component
 function AppContent() {
@@ -15,7 +17,11 @@ function AppContent() {
   const { currentPage, setCurrentPage } = useNavigation();
   const { theme } = useTheme();
   const { state, actions } = useApp();
-  
+
+  // Tracing hooks
+  const { trackLogout } = useAuthTracing();
+  const { trackPageLoad } = usePerformanceTracing();
+
   // Initialize settings with defaults if not present
   const settings = {
     emailAlerts: false,
@@ -48,8 +54,19 @@ function AppContent() {
   };
 
   const handleLogout = () => {
+    // Track logout journey
+    const traceId = trackLogout();
+
     logout();
     setAnchorEl(null);
+
+    // End logout journey
+    setTimeout(() => {
+      browserTracer.endJourney(traceId, {
+        'auth.logout_success': true,
+        'auth.method': 'user_initiated'
+      });
+    }, 100);
   };
 
   const handleMenuClose = () => {
@@ -355,7 +372,7 @@ function AppContent() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSettingsOpen(false)} variant="text">Close</Button>
+          <Button onClick={() => setSettingsOpen(false)}>Close</Button>
           <Button variant="contained" onClick={() => setSettingsOpen(false)}>
             Save Settings
           </Button>

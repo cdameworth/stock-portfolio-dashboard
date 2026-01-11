@@ -1,0 +1,470 @@
+/**
+ * Professional Black-Tie Theme
+ * Sophisticated, understated luxury for financial professionals
+ */
+
+/* Professional Color Palette */
+:root {
+  /* Primary Colors - Sophisticated Blacks and Grays */
+  --deep-charcoal: #1a1a1a;
+  --charcoal: #2d2d2d;
+  --warm-black: #1c1c1e;
+  --professional-gray: #3a3a3c;
+  --silver-accent: #8e8e93;
+  
+  /* Accent Colors - Refined Gold and White */
+  --refined-gold: #d4af37;
+  --muted-gold: #c5a028;
+  --crisp-white: #ffffff;
+  --warm-white: #f8f8f8;
+  --soft-gray: #f2f2f7;
+  
+  /* Status Colors - Professional Tones */
+  --success: #30d158;
+  --warning: #ff9f0a;
+  --danger: #ff453a;
+  --info: #007aff;
+  
+  /* Typography - Clean and Professional */
+  --font-primary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-mono: 'SF Mono', 'Monaco', 'Inconsolata', monospace;
+  
+  /* Shadows - Subtle Depth */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.15);
+  
+  /* Borders */
+  --border-color: #3a3a3c;
+  --border-light: #48484a;
+}
+
+/* Import Professional Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+
+/* Base Styling - Override dashboard.css */
+body {
+  background: linear-gradient(145deg, var(--deep-charcoal) 0%, var(--warm-black) 100%) !important;
+  color: var(--crisp-white) !important;
+  font-family: var(--font-primary) !important;
+  font-weight: 400;
+  line-height: 1.6;
+  margin: 0;
+  padding: 0;
+}
+
+/* Professional Navigation - Override dashboard styles */
+.navbar,
+.sidebar {
+  background: rgba(26, 26, 26, 0.95) !important;
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border-color) !important;
+  border-right: 1px solid var(--border-color) !important;
+}
+
+.nav-logo h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--crisp-white);
+  margin: 0;
+}
+
+.vip-badge {
+  background: linear-gradient(135deg, var(--refined-gold), var(--muted-gold));
+  color: var(--deep-charcoal);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-left: 8px;
+}
+
+/* Professional Buttons */
+.btn-luxury {
+  border: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--crisp-white);
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.btn-luxury:hover {
+  background: var(--charcoal);
+  border-color: var(--refined-gold);
+  color: var(--crisp-white);
+}
+
+.btn-premium {
+  background: linear-gradient(135deg, var(--refined-gold), var(--muted-gold));
+  border: none;
+  color: var(--deep-charcoal);
+  font-weight: 600;
+}
+
+.btn-premium:hover {
+  background: var(--refined-gold);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Sophisticated Cards - Override dashboard styles */
+.card-luxury,
+.card.card-luxury {
+  background: rgba(26, 26, 26, 0.9) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 12px !important;
+  backdrop-filter: blur(10px);
+}
+
+.card-header-luxury {
+  border-bottom: 1px solid var(--border-color);
+  padding: 20px 24px 16px;
+}
+
+.card-title-luxury {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--crisp-white);
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.card-subtitle-luxury {
+  color: var(--silver-accent);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* Professional Metrics - Override dashboard styles */
+.metric-card-luxury,
+.metric-card.metric-card-luxury {
+  background: linear-gradient(145deg, rgba(26, 26, 26, 0.95), rgba(45, 45, 45, 0.8)) !important;
+  border: 1px solid var(--border-color) !important;
+  border-radius: 8px !important;
+  padding: 20px !important;
+}
+
+.metric-title-luxury {
+  color: var(--silver-accent);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value-luxury {
+  color: var(--crisp-white);
+  font-weight: 600;
+  font-size: 1.875rem;
+  margin: 8px 0 4px;
+}
+
+.metric-icon-luxury {
+  color: var(--refined-gold);
+  font-size: 1.25rem;
+}
+
+/* Professional Sidebar - Override dashboard styles */
+.luxury-sidebar-header,
+.sidebar-header.luxury-sidebar-header {
+  background: var(--deep-charcoal) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+  padding: 24px 20px !important;
+}
+
+.brand-luxury {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--crisp-white);
+  margin: 0 0 4px;
+  font-size: 1.5rem;
+}
+
+.tagline-luxury {
+  color: var(--silver-accent);
+  font-size: 0.875rem;
+  margin: 0 0 8px;
+}
+
+.member-status {
+  background: linear-gradient(135deg, var(--refined-gold), var(--muted-gold));
+  color: var(--deep-charcoal);
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 10px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+/* Professional Navigation Links */
+.nav-link-luxury {
+  color: var(--silver-accent);
+  padding: 12px 20px;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.nav-link-luxury:hover,
+.nav-link-luxury.active {
+  background: rgba(45, 45, 45, 0.6);
+  color: var(--crisp-white);
+  border-left-color: var(--refined-gold);
+}
+
+.nav-icon-luxury {
+  color: var(--refined-gold);
+  margin-right: 12px;
+  font-size: 1rem;
+}
+
+/* Professional Header */
+.header-title-luxury {
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+}
+
+.page-title-luxury {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--crisp-white);
+  margin: 0 0 4px;
+}
+
+.page-subtitle-luxury {
+  color: var(--silver-accent);
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+/* Professional Forms */
+.auth-form,
+.luxury-form {
+  padding: 24px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--crisp-white);
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+.form-group input {
+  width: 100%;
+  background: rgba(26, 26, 26, 0.8);
+  border: 1px solid var(--border-color);
+  color: var(--crisp-white);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 0.9375rem;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--refined-gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+}
+
+.form-control-luxury {
+  background: rgba(26, 26, 26, 0.8);
+  border: 1px solid var(--border-color);
+  color: var(--crisp-white);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 0.9375rem;
+}
+
+.form-control-luxury:focus {
+  outline: none;
+  border-color: var(--refined-gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.1);
+}
+
+.form-footer {
+  text-align: center;
+  margin-top: 16px;
+}
+
+.form-footer a {
+  color: var(--refined-gold);
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+
+.form-footer a:hover {
+  text-decoration: underline;
+}
+
+.btn-full {
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* Professional Modals - Centered Popup */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(5px);
+}
+
+.modal-content,
+.modal-content-luxury {
+  background: var(--deep-charcoal);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-xl);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 400px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header,
+.modal-header-luxury {
+  background: var(--charcoal);
+  border-bottom: 1px solid var(--border-color);
+  padding: 20px 24px;
+  border-radius: 12px 12px 0 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title-luxury {
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--crisp-white);
+  margin: 0;
+}
+
+/* Professional Stats */
+.stat-card-luxury {
+  background: rgba(26, 26, 26, 0.6);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+.stat-label-luxury {
+  color: var(--silver-accent);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value-luxury {
+  color: var(--crisp-white);
+  font-weight: 600;
+  font-size: 1.5rem;
+}
+
+/* Professional Indicators */
+.live-indicator-luxury {
+  background: linear-gradient(135deg, var(--success), #28a745);
+  color: var(--crisp-white);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Subtle Professional Animations */
+.card-luxury {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card-luxury:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Professional Plan Badge */
+.plan-badge-luxury {
+  background: linear-gradient(135deg, var(--refined-gold), var(--muted-gold));
+  color: var(--deep-charcoal);
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+/* Clean Form Selects */
+.form-select-luxury {
+  background: rgba(26, 26, 26, 0.8);
+  border: 1px solid var(--border-color);
+  color: var(--crisp-white);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+/* Professional Close Button */
+.luxury-close {
+  color: var(--silver-accent);
+  font-size: 24px;
+  font-weight: 300;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.luxury-close:hover {
+  opacity: 1;
+  color: var(--crisp-white);
+}
+
+/* Professional Links */
+.luxury-link {
+  color: var(--refined-gold);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.luxury-link:hover {
+  color: var(--muted-gold);
+  text-decoration: underline;
+}
+
+.luxury-disclaimer {
+  color: var(--silver-accent);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+/* Remove Excessive Animations */
+@keyframes none { }
+
+/* Clean, Professional Responsive Design */
+@media (max-width: 768px) {
+  .card-luxury {
+    border-radius: 8px;
+  }
+  
+  .modal-content-luxury {
+    margin: 20px;
+    border-radius: 8px;
+  }
+}

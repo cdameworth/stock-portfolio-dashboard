@@ -18,7 +18,9 @@ import {
   IconButton
 } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
-import { Add, TrendingUp, TrendingDown, MoreVert, FolderOpen } from '@mui/icons-material';
+import { Add, TrendingUp, TrendingDown, MoreVert, FolderOpen, Edit, Delete, TrendingFlat } from '@mui/icons-material';
+import { usePortfolioTracing, usePerformanceTracing } from '../utils/useTracing.js';
+import { browserTracer } from '../services/browser-tracing.js';
 
 function Portfolio() {
   const [portfolios, setPortfolios] = useState([{ id: 'default', name: 'Main Portfolio', positions: [] }]);
@@ -31,17 +33,31 @@ function Portfolio() {
   const [symbolOptions, setSymbolOptions] = useState([]);
   const [newPortfolioName, setNewPortfolioName] = useState('');
   const [searchLoading, setSearchLoading] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingPosition, setEditingPosition] = useState(null);
+  const [editShares, setEditShares] = useState('');
+  const [requestingPredictions, setRequestingPredictions] = useState(new Set());
+
+  // Tracing hooks
+  const { trackPortfolioView, trackPortfolioApiCall } = usePortfolioTracing();
+  const { trackPageLoad } = usePerformanceTracing();
 
   useEffect(() => {
+    // Track page load
+    trackPageLoad('Portfolio');
     fetchPortfolio();
-  }, []);
+  }, [trackPageLoad]);
 
   const fetchPortfolio = async () => {
+    // Start portfolio view journey
+    const traceId = trackPortfolioView('all');
+
     try {
       const token = localStorage.getItem('authToken') || localStorage.getItem('token');
 
       // First, get the list of user portfolios
-      const portfoliosResponse = await fetch('/api/portfolios', {
+      const portfoliosResponse = await trackPortfolioApiCall('/api/portfolios', {
+        method: 'GET',
         headers: { 'Authorization': `Bearer ${token}` }
       });
 
@@ -80,8 +96,20 @@ function Portfolio() {
           }
         }
       }
+
+      // End portfolio view journey successfully
+      browserTracer.endJourney(traceId, {
+        'portfolio.count': portfolios.length,
+        'portfolio.load_success': true
+      });
+
     } catch (error) {
       console.error('Failed to fetch portfolio:', error);
+      // End journey with error
+      browserTracer.endJourney(traceId, {
+        'portfolio.load_success': false,
+        'error.message': error.message
+      });
     } finally {
       setLoading(false);
     }
@@ -142,6 +170,105 @@ function Portfolio() {
       }
     } catch (error) {
       console.error('Failed to create portfolio:', error);
+    }
+  };
+
+  const handleEditPosition = (position) => {
+    setEditingPosition(position);
+    setEditShares(position.shares.toString());
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdatePosition = async () => {
+    if (!editingPosition || !editShares) return;
+
+    try {
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const response = await fetch(`/api/portfolios/${portfolios[activePortfolio].id}/positions/${editingPosition.symbol}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          shares: parseInt(editShares)
+        })
+      });
+
+      if (response.ok) {
+        setEditDialogOpen(false);
+        setEditingPosition(null);
+        setEditShares('');
+        fetchPortfolio();
+      }
+    } catch (error) {
+      console.error('Failed to update position:', error);
+    }
+  };
+
+  const handleDeletePosition = async (position) => {
+    if (!window.confirm(`Are you sure you want to remove ${position.symbol} from your portfolio?`)) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const response = await fetch(`/api/portfolios/${portfolios[activePortfolio].id}/positions/${position.symbol}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        fetchPortfolio();
+      }
+    } catch (error) {
+      console.error('Failed to delete position:', error);
+    }
+  };
+
+  const handleRequestPredictions = async (position) => {
+    const symbol = position.symbol;
+
+    // Add to requesting set to show loading state
+    setRequestingPredictions(prev => new Set(prev).add(symbol));
+
+    try {
+      const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+      const response = await fetch(`/api/stocks/${symbol}/request`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          analysisType: 'full_analysis',
+          timeframe: '30_days',
+          priority: 'normal'
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Show success message
+        alert(`✅ Prediction request submitted for ${symbol}!\n\nRequest ID: ${result.request_id}\nStatus: ${result.status}\n\n${result.message}`);
+      } else {
+        // Show error or queued message
+        alert(`⚠️ ${result.message || `Failed to request predictions for ${symbol}`}`);
+      }
+
+    } catch (error) {
+      console.error(`Failed to request predictions for ${symbol}:`, error);
+      alert(`❌ Error requesting predictions for ${symbol}. Please try again later.`);
+    } finally {
+      // Remove from requesting set
+      setRequestingPredictions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(symbol);
+        return newSet;
+      });
     }
   };
 
@@ -270,6 +397,46 @@ function Portfolio() {
           </Typography>
         );
       }
+    },
+    {
+      field: 'actions',
+      headerName: 'Actions',
+      width: 180,
+      align: 'center',
+      headerAlign: 'center',
+      sortable: false,
+      renderCell: (params) => (
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <IconButton
+            size="small"
+            onClick={() => handleEditPosition(params.row)}
+            sx={{ color: 'primary.main' }}
+            title="Edit Position"
+          >
+            <Edit fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => handleDeletePosition(params.row)}
+            sx={{ color: 'error.main' }}
+            title="Remove Position"
+          >
+            <Delete fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => handleRequestPredictions(params.row)}
+            sx={{ color: 'info.main' }}
+            title="Request AI Predictions"
+            disabled={requestingPredictions.has(params.row.symbol)}
+          >
+            {requestingPredictions.has(params.row.symbol) ?
+              <CircularProgress size={16} /> :
+              <TrendingFlat fontSize="small" />
+            }
+          </IconButton>
+        </Box>
+      )
     }
   ];
 
@@ -381,7 +548,7 @@ function Portfolio() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setAddDialogOpen(false)} variant="text">Cancel</Button>
+          <Button onClick={() => setAddDialogOpen(false)}>Cancel</Button>
           <Button 
             onClick={handleAddPosition}
             variant="contained"
@@ -406,13 +573,39 @@ function Portfolio() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreatePortfolioOpen(false)} variant="text">Cancel</Button>
+          <Button onClick={() => setCreatePortfolioOpen(false)}>Cancel</Button>
           <Button 
             onClick={handleCreatePortfolio}
             variant="contained"
             disabled={!newPortfolioName.trim()}
           >
             Create Portfolio
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Edit Position - {editingPosition?.symbol}</DialogTitle>
+        <DialogContent>
+          <TextField
+            label="Number of Shares"
+            type="number"
+            fullWidth
+            margin="normal"
+            value={editShares}
+            onChange={(e) => setEditShares(e.target.value)}
+            inputProps={{ min: 1 }}
+            autoFocus
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleUpdatePosition}
+            variant="contained"
+            disabled={!editShares}
+          >
+            Update Position
           </Button>
         </DialogActions>
       </Dialog>

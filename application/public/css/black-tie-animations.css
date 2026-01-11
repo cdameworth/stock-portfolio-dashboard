@@ -1,0 +1,258 @@
+/**
+ * Black-tie Premium Animations & Visual Effects
+ * Sophisticated animations for exclusive club experience
+ */
+
+/* Premium Loading Animation */
+@keyframes luxuryPulse {
+  0% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
+  100% { opacity: 0.3; transform: scale(1); }
+}
+
+@keyframes shimmerEffect {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes floatIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(50px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Premium Button Hover Effects */
+.btn-luxury:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(212, 175, 55, 0.3);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-premium:hover {
+  background: linear-gradient(135deg, var(--champagne-gold) 0%, #f4e4bc 100%);
+  color: var(--midnight-black);
+  box-shadow: 0 12px 40px rgba(212, 175, 55, 0.4);
+}
+
+/* Luxury Card Animations */
+.card-luxury {
+  animation: floatIn 0.6s ease-out;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-luxury:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.8);
+}
+
+/* Metric Card Premium Effects */
+.metric-card-luxury {
+  animation: slideInLeft 0.8s ease-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.metric-card-luxury::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, 
+    transparent,
+    var(--champagne-gold),
+    var(--platinum-silver),
+    var(--champagne-gold),
+    transparent
+  );
+  animation: shimmerEffect 3s linear infinite;
+}
+
+.metric-value-luxury {
+  background: linear-gradient(135deg, var(--champagne-gold), var(--platinum-silver));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: luxuryPulse 2s ease-in-out infinite;
+}
+
+/* Navigation Luxury Effects */
+.nav-link-luxury {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nav-link-luxury::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 3px;
+  height: 0;
+  background: var(--champagne-gold);
+  transition: height 0.3s ease;
+}
+
+.nav-link-luxury:hover::before,
+.nav-link-luxury.active::before {
+  height: 100%;
+}
+
+.nav-link-luxury:hover {
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.1), rgba(192, 192, 192, 0.05));
+  transform: translateX(5px);
+}
+
+/* Premium Loading States */
+.loading-placeholder {
+  background: linear-gradient(90deg, 
+    var(--charcoal-gray) 25%,
+    var(--warm-gray) 50%,
+    var(--charcoal-gray) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmerEffect 2s linear infinite;
+  border-radius: 4px;
+  color: transparent;
+}
+
+/* Live Indicator Premium Effect */
+.live-indicator-luxury {
+  animation: luxuryPulse 1.5s ease-in-out infinite;
+  background: linear-gradient(135deg, var(--success-green), #4ade80);
+  box-shadow: 0 0 15px rgba(74, 222, 128, 0.4);
+}
+
+/* Modal Luxury Entrance */
+.modal-content-luxury {
+  animation: floatIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center center;
+}
+
+/* Form Luxury Focus Effects */
+.form-control-luxury:focus,
+.form-select-luxury:focus {
+  outline: none;
+  border-color: var(--champagne-gold);
+  box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.2);
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(24, 24, 27, 0.95));
+}
+
+/* Staggered Animation for Metric Cards */
+.metric-card-luxury:nth-child(1) { animation-delay: 0s; }
+.metric-card-luxury:nth-child(2) { animation-delay: 0.2s; }
+.metric-card-luxury:nth-child(3) { animation-delay: 0.4s; }
+
+/* Premium Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--midnight-black);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--champagne-gold), var(--platinum-silver));
+  border-radius: 10px;
+  border: 1px solid var(--charcoal-gray);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--champagne-gold);
+}
+
+/* VIP Badge Animation */
+.vip-badge {
+  animation: luxuryPulse 2s ease-in-out infinite;
+  position: relative;
+}
+
+.vip-badge::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+  animation: shimmerEffect 3s linear infinite;
+}
+
+/* Member Status Glow */
+.member-status {
+  animation: luxuryPulse 3s ease-in-out infinite;
+  position: relative;
+}
+
+.member-status::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, var(--champagne-gold), var(--platinum-silver), var(--champagne-gold));
+  border-radius: inherit;
+  z-index: -1;
+  animation: shimmerEffect 4s linear infinite;
+}
+
+/* Responsive Premium Animations */
+@media (max-width: 768px) {
+  /* Reduce animations on mobile for performance */
+  .card-luxury,
+  .metric-card-luxury {
+    animation: none;
+  }
+  
+  .btn-luxury:hover {
+    transform: none;
+  }
+  
+  /* Keep essential luxury elements */
+  .metric-value-luxury {
+    animation: luxuryPulse 3s ease-in-out infinite;
+  }
+}
+
+/* Accessibility - Respect user preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

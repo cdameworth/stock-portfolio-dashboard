@@ -621,7 +621,7 @@ function Recommendations() {
                 {/* Show Expired Toggle */}
                 <Grid item xs={12} md={1}>
                   <Button
-                    variant={Boolean(showExpired) ? "contained" : "outlined"}
+                    variant={showExpired ? "contained" : "outlined"}
                     color="primary"
                     onClick={() => setShowExpired(!showExpired)}
                     startIcon={<Warning />}
@@ -765,7 +765,7 @@ function Recommendations() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setHistoryDialogOpen(false)} variant="text">Close</Button>
+          <Button onClick={() => setHistoryDialogOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Box>

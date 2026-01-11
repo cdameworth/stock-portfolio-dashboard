@@ -12,6 +12,9 @@ RUN npm install --legacy-peer-deps && npm cache clean --force
 # Copy application code
 COPY . .
 
+# Build React app
+RUN npm run build:react || echo "React build skipped (may not be configured)"
+
 # Create logs directory
 RUN mkdir -p logs
 

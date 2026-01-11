@@ -309,6 +309,7 @@ export function AppProvider({ children }) {
             // Verify token is still valid
             await authApi.verifyToken();
             actions.setUser(JSON.parse(savedUser));
+            actions.setAuthenticated(true);
           } catch (error) {
             console.warn('Token verification failed:', error);
             actions.logout();
@@ -359,6 +360,7 @@ export function useAuth() {
     authLoading: state.authLoading,
     authError: state.errors.auth,
     setUser: actions.setUser,
+    setAuthenticated: actions.setAuthenticated,
     logout: actions.logout,
     clearAuthError: () => actions.clearError('auth')
   };
