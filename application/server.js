@@ -286,6 +286,36 @@ app.get('/debug', (req, res) => {
   res.status(200).send('Service is running!');
 });
 
+// Price provider status endpoint for debugging
+app.get('/api/price-status', (req, res) => {
+  try {
+    const status = stockService.getPriceProviderStatus();
+    res.json({
+      timestamp: new Date().toISOString(),
+      providers: status
+    });
+  } catch (error) {
+    logger.error('Error getting price provider status:', error);
+    res.status(500).json({ error: 'Failed to get price provider status' });
+  }
+});
+
+// Test real-time price endpoint
+app.get('/api/price/:symbol', async (req, res) => {
+  try {
+    const { symbol } = req.params;
+    const priceData = await stockService.getRealTimePrice(symbol.toUpperCase(), 0);
+    res.json({
+      symbol: symbol.toUpperCase(),
+      ...priceData,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error(`Error getting price for ${req.params.symbol}:`, error);
+    res.status(500).json({ error: 'Failed to get price' });
+  }
+});
+
 // Metrics endpoint for monitoring
 app.get('/metrics', async (req, res) => {
   try {

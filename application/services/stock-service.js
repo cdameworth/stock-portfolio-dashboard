@@ -11,6 +11,7 @@ const {
   recordSpanEvent
 } = require('../otel-helpers');
 const { businessMetrics } = require('../business-metrics');
+const { getPriceService } = require('./price-service');
 
 const logger = winston.createLogger({
   level: 'info',
@@ -26,7 +27,14 @@ class StockService {
     this.apiUrl = options.apiUrl || process.env.STOCK_ANALYTICS_API_URL;
     this.timeout = options.timeout || 30000;
     this.apiKey = options.apiKey || process.env.STOCK_API_KEY || process.env.STOCK_ANALYTICS_API_KEY;
-    
+
+    // Initialize price service for real-time quotes
+    this.priceService = getPriceService({
+      cacheTTL: 60000, // 1 minute cache
+      alphaVantageKey: process.env.ALPHA_VANTAGE_API_KEY,
+      finnhubKey: process.env.FINNHUB_API_KEY
+    });
+
     // Configure axios instance
     const headers = {
       'Content-Type': 'application/json',
@@ -514,13 +522,21 @@ class StockService {
 
   /**
    * Validate and update current price using real-time data
+   * Always fetches fresh prices from the price service
    */
   async validateCurrentPrice(symbol, apiPrice) {
     try {
-      // If API price seems reasonable (not 0, not extremely old), trust it for now
+      // Always try to get real-time price first
+      const realTimeResult = await this.getRealTimePrice(symbol, parseFloat(apiPrice) || 0);
+
+      if (realTimeResult.updated && realTimeResult.price > 0) {
+        return realTimeResult;
+      }
+
+      // If real-time fetch failed, check if API price is reasonable
       const numPrice = parseFloat(apiPrice);
       if (numPrice > 0 && numPrice < 10000) {
-        // For high-confidence recent data, return as-is
+        logger.debug(`Using API price for ${symbol}: $${numPrice} (real-time unavailable)`);
         return {
           price: numPrice,
           source: 'api',
@@ -528,11 +544,10 @@ class StockService {
         };
       }
 
-      // For questionable prices, try to get real-time data
-      return await this.getRealTimePrice(symbol, numPrice);
+      // Return whatever we got from real-time (may be fallback)
+      return realTimeResult;
     } catch (error) {
       logger.warn(`Price validation failed for ${symbol}:`, error.message);
-      // Return API price as fallback
       const fallbackPrice = parseFloat(apiPrice) || 0;
       return {
         price: fallbackPrice,
@@ -543,28 +558,27 @@ class StockService {
   }
 
   /**
-   * Get real-time price from Yahoo Finance
+   * Get real-time price using the multi-provider price service
    */
   async getRealTimePrice(symbol, fallbackPrice = 0) {
     try {
-      const yahooFinance = require('yahoo-finance2').default;
+      const priceData = await this.priceService.getPrice(symbol);
 
-      // Handle special symbols (BRK.B -> BRK-B for Yahoo)
-      const yahooSymbol = symbol.replace('.', '-');
-
-      const quote = await yahooFinance.quote(yahooSymbol);
-      const currentPrice = quote.regularMarketPrice || quote.price || quote.ask || quote.bid;
-
-      if (currentPrice && currentPrice > 0) {
-        logger.info(`Updated ${symbol} price from real-time data: $${currentPrice}`);
+      if (priceData && priceData.price > 0) {
+        logger.info(`Got real-time price for ${symbol}: $${priceData.price} (source: ${priceData.source})`);
         return {
-          price: currentPrice,
-          source: 'yahoo_finance',
-          updated: true
+          price: priceData.price,
+          source: priceData.source,
+          updated: true,
+          change: priceData.change,
+          changePercent: priceData.changePercent,
+          previousClose: priceData.previousClose,
+          cached: priceData.cached || false
         };
       }
 
       // If no real-time price available, return fallback
+      logger.warn(`No real-time price available for ${symbol}, using fallback: $${fallbackPrice}`);
       return {
         price: fallbackPrice,
         source: 'fallback',
@@ -578,6 +592,13 @@ class StockService {
         updated: false
       };
     }
+  }
+
+  /**
+   * Get provider status for debugging
+   */
+  getPriceProviderStatus() {
+    return this.priceService.getProviderStatus();
   }
 
   /**
