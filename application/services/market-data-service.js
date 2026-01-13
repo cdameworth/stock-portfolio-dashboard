@@ -2,7 +2,7 @@
  * Market Data Service - Real-time stock price fetching
  */
 
-const yahooFinance = require('yahoo-finance2').default;
+const YahooFinance = require('yahoo-finance2').default;
 const NodeCache = require('node-cache');
 const winston = require('winston');
 
@@ -19,6 +19,9 @@ class MarketDataService {
   constructor() {
     // Cache stock prices for 1 minute to avoid hitting rate limits
     this.cache = new NodeCache({ stdTTL: 60, checkperiod: 120 });
+
+    // Initialize yahoo-finance2 v3 instance
+    this.yahooFinance = new YahooFinance();
   }
 
   /**
@@ -34,7 +37,7 @@ class MarketDataService {
       }
 
       // Fetch from Yahoo Finance
-      const quote = await yahooFinance.quote(symbol);
+      const quote = await this.yahooFinance.quote(symbol);
       
       const data = {
         symbol: quote.symbol,
@@ -118,7 +121,7 @@ class MarketDataService {
           startDate.setMonth(startDate.getMonth() - 1);
       }
 
-      const historicalData = await yahooFinance.historical(symbol, {
+      const historicalData = await this.yahooFinance.historical(symbol, {
         period1: startDate,
         period2: endDate,
         interval: period === '1d' ? '5m' : '1d'
@@ -152,7 +155,7 @@ class MarketDataService {
    */
   async searchStocks(query) {
     try {
-      const results = await yahooFinance.search(query);
+      const results = await this.yahooFinance.search(query);
       return results.quotes.map(quote => ({
         symbol: quote.symbol,
         name: quote.longname || quote.shortname,
@@ -170,7 +173,7 @@ class MarketDataService {
    */
   async getTrendingStocks() {
     try {
-      const trending = await yahooFinance.trendingSymbols('US');
+      const trending = await this.yahooFinance.trendingSymbols('US');
       const symbols = trending.quotes.slice(0, 10).map(q => q.symbol);
       return await this.getQuotes(symbols);
     } catch (error) {

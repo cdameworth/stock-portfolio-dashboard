@@ -1,6 +1,7 @@
 'use strict';
 
 const winston = require('winston');
+const YahooFinance = require('yahoo-finance2').default;
 const DatabaseService = require('./database-service');
 const StockService = require('./stock-service');
 
@@ -23,7 +24,10 @@ class RecommendationSyncService {
     this.stockService = options.stockService || new StockService({
       apiUrl: process.env.STOCK_ANALYTICS_API_URL
     });
-    
+
+    // Initialize yahoo-finance2 v3 instance
+    this.yahooFinance = new YahooFinance();
+
     this.syncInterval = options.syncInterval || 1800000; // 30 minutes (optimized frequency)
     this.isRunning = false;
     this.syncTimer = null;
@@ -223,9 +227,8 @@ class RecommendationSyncService {
 
       for (const symbol of symbols) {
         try {
-          // Get current price from Yahoo Finance (we'll use the existing AI performance service)
-          const yahooFinance = require('yahoo-finance2').default;
-          const quote = await yahooFinance.quote(symbol);
+          // Get current price from Yahoo Finance using the instance
+          const quote = await this.yahooFinance.quote(symbol);
           const currentPrice = quote.regularMarketPrice || quote.price;
 
           if (currentPrice) {
