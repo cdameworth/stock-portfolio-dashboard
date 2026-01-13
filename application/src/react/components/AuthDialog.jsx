@@ -102,6 +102,7 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
       });
 
       const result = await response.json();
+      console.log('Login response:', result);
 
       if (response.ok) {
         if (type === 'forgot') {
@@ -109,6 +110,7 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
           alert('Password reset email sent successfully');
           handleClose();
         } else {
+          console.log('User from login:', result.user);
           localStorage.setItem('authToken', result.token);
           localStorage.setItem('user', JSON.stringify(result.user || { email: data.email }));
           
