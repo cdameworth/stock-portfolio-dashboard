@@ -2,10 +2,24 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## AWS Configuration
-- Use AWS profile `stock-portfolio-admin` for all CLI commands
-- Default region: `us-east-1`
-- ECR repository: `558824710822.dkr.ecr.us-east-1.amazonaws.com/stock-portfolio-dashboard`
+## Railway Deployment
+
+This project is deployed on [Railway](https://railway.app). No AWS infrastructure is used.
+
+### Deployment Commands
+```bash
+# Deploy to Railway (from application/ directory)
+cd application && railway up
+
+# View deployment logs
+railway logs
+
+# Open deployed app in browser
+railway open
+
+# Link to existing Railway project
+railway link
+```
 
 ## Development Commands
 
@@ -60,25 +74,13 @@ cd application && npm run migrate:dev
 cd application && npm run health
 ```
 
-### Container Operations
+### Local Docker Build
 ```bash
-# Build ARM64 image for Fargate
-docker buildx build --platform linux/arm64 -t stock-portfolio-dashboard:v3-arm64 .
+# Build image locally
+cd application && docker build -t stock-portfolio-dashboard .
 
-# Tag and push to ECR
-docker tag stock-portfolio-dashboard:v3-arm64 558824710822.dkr.ecr.us-east-1.amazonaws.com/stock-portfolio-dashboard:v3-arm64
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 558824710822.dkr.ecr.us-east-1.amazonaws.com
-docker push 558824710822.dkr.ecr.us-east-1.amazonaws.com/stock-portfolio-dashboard:v3-arm64
-```
-
-### Infrastructure Operations
-```bash
-# From infrastructure/ directory
-cd infrastructure
-terraform init
-terraform plan
-terraform apply
-terraform output    # View infrastructure outputs
+# Run locally with Docker
+docker run -p 3000:3000 --env-file .env stock-portfolio-dashboard
 ```
 
 ## Architecture Overview
@@ -88,9 +90,9 @@ terraform output    # View infrastructure outputs
 - **Frontend**: Hybrid architecture with two rendering strategies:
   1. Traditional server-rendered pages (Express views)
   2. Modern React components (Material-UI v7) built with Vite
-- **Database**: PostgreSQL (RDS Aurora in production)
-- **Cache**: Redis (ElastiCache in production)
-- **Infrastructure**: AWS ECS Fargate ARM64 with Terraform
+- **Database**: PostgreSQL (Railway Postgres plugin)
+- **Cache**: Redis (Railway Redis plugin)
+- **Deployment**: Railway with automatic builds from Dockerfile
 - **Observability**: OpenTelemetry → SigNoz Cloud (tracing.js)
 
 ### Critical Initialization Pattern
@@ -148,10 +150,15 @@ Applied in order:
 8. **Authentication**: Custom auth middleware in `middleware/auth.js`
 
 ### Environment Configuration
-See `.env.example` for full list. Critical variables:
 
-**Database:**
-- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+Railway automatically injects environment variables for connected services. Configure these in the Railway dashboard:
+
+**Database (auto-injected by Railway Postgres plugin):**
+- `DATABASE_URL` - Full PostgreSQL connection string
+- Or individual variables: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+
+**Redis (auto-injected by Railway Redis plugin):**
+- `REDIS_URL` - Full Redis connection string
 
 **External APIs:**
 - `STOCK_ANALYTICS_API_URL` - Stock Analytics Engine endpoint
@@ -169,12 +176,13 @@ See `.env.example` for full list. Critical variables:
 - `GOOGLE_AD_PUBLISHER_ID` - AdSense integration
 - `EMAIL_PROVIDER` - Email service (ses, gmail, sendgrid)
 
-### Deployment Architecture
-- **Production**: ECS Fargate ARM64 tasks with Application Load Balancer
-- **Container platform**: ARM64 architecture for cost efficiency
-- **Infrastructure**: Terraform-managed (`infrastructure/*.tf`)
+### Railway Deployment Architecture
+- **Platform**: Railway with automatic Git deployments
+- **Build**: Dockerfile-based builds (Node.js 20 Alpine)
+- **Database**: Railway Postgres plugin
+- **Cache**: Railway Redis plugin
+- **Networking**: Railway-managed domains and SSL
 - **Monitoring**: Winston logging, Prometheus metrics, OpenTelemetry tracing
-- **Caching**: Multi-layer (Redis, application-level, browser, CDN via CloudFront)
 
 ### Key Patterns
 
@@ -184,7 +192,6 @@ See `.env.example` for full list. Critical variables:
 - Error boundaries for React components
 
 **Caching Strategy:**
-- CDN (CloudFront): Static assets
 - Redis: API responses and session data
 - Application: In-memory cache (node-cache)
 - Browser: Cache headers for static resources
@@ -196,7 +203,6 @@ See `.env.example` for full list. Critical variables:
 
 **Observability:**
 - OpenTelemetry auto-instrumentation for Node.js
-- AWS resource detection (ECS, EC2) for infrastructure context
 - Browser telemetry correlation: `middleware/browser-telemetry.js`
 - Business metrics tracking: `business-metrics.js`
 
@@ -212,6 +218,8 @@ application/
 ├── server.js                    # Main Express application
 ├── tracing.js                   # OpenTelemetry initialization (MUST load first)
 ├── business-metrics.js          # Business metrics definitions
+├── Dockerfile                   # Railway build configuration
+├── railway.json                 # Railway deployment settings
 ├── services/                    # Service layer
 │   ├── base-service.js         # Base class for all services
 │   ├── *-service.js            # Individual services
@@ -241,15 +249,6 @@ application/
 ├── vite.config.react.js        # Vite configuration for React
 ├── jest.config.js              # Jest test configuration
 └── .eslintrc.js                # ESLint rules
-
-infrastructure/
-├── main.tf                      # Primary infrastructure definitions
-├── provider.tf                  # AWS provider configuration
-├── variables.tf                 # Input variables
-├── outputs.tf                   # Output values
-├── alb.tf                       # Application Load Balancer
-├── redis.tf                     # ElastiCache Redis configuration
-└── *.tf                         # Additional infrastructure components
 ```
 
 ## Important Notes
@@ -271,3 +270,9 @@ Check `server.js` to see whether standard or "improved" service versions are act
 
 ### OpenTelemetry Tracing
 All instrumentation happens automatically via `@opentelemetry/auto-instrumentations-node`. Manual span creation is available via `@opentelemetry/api` if needed.
+
+### Railway-Specific Notes
+- Railway automatically detects and uses the `Dockerfile` in the `application/` directory
+- Environment variables should be configured in the Railway dashboard
+- Database and Redis connections are automatically injected when plugins are attached
+- Custom domains can be configured in Railway project settings
