@@ -41,7 +41,10 @@ import {
   Sort,
   ExpandMore,
   Clear,
-  Warning
+  Warning,
+  AccessTime,
+  Speed,
+  TrendingFlat
 } from '@mui/icons-material';
 import { stockApi } from '../utils/api.js';
 
@@ -220,15 +223,58 @@ function RecommendationCard({ recommendation, onViewHistory }) {
           {recommendation.rationale || 'AI analysis indicates market conditions favor this position.'}
         </Typography>
 
+        {/* Time-to-Hit Prediction Section */}
         {recommendation.time_to_hit_prediction && (
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-              Timeline Prediction:
+          <Box sx={{
+            mt: 2,
+            p: 1.5,
+            backgroundColor: 'rgba(33, 150, 243, 0.08)',
+            borderRadius: 1,
+            border: '1px solid rgba(33, 150, 243, 0.2)'
+          }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <AccessTime sx={{ fontSize: 16, mr: 0.5, color: 'info.main' }} />
+              <Typography variant="caption" fontWeight="bold" color="info.main">
+                TIME TO TARGET
+              </Typography>
+            </Box>
+            <Typography variant="body2" fontWeight="medium" sx={{ mb: 1 }}>
+              {recommendation.timing_summary ||
+               recommendation.time_to_hit_prediction.expected_timeline ||
+               'Analysis in progress'}
             </Typography>
-            <Typography variant="body2" color="info.main">
-              {recommendation.time_to_hit_prediction.timing_summary || 
-               recommendation.time_to_hit_prediction.expected_timeline}
-            </Typography>
+            {recommendation.time_to_hit_prediction.confidence_level && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Chip
+                  size="small"
+                  label={`${recommendation.time_to_hit_prediction.confidence_level} confidence`}
+                  color={
+                    recommendation.time_to_hit_prediction.confidence_level === 'high' ? 'success' :
+                    recommendation.time_to_hit_prediction.confidence_level === 'medium' ? 'warning' : 'default'
+                  }
+                  sx={{ fontSize: '0.7rem', height: 20 }}
+                />
+              </Box>
+            )}
+            {/* Probability Milestones */}
+            {recommendation.time_to_hit_prediction.probability_milestones && (
+              <Box sx={{ mt: 1.5 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                  Hit Probability:
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  {Object.entries(recommendation.time_to_hit_prediction.probability_milestones).map(([period, prob]) => (
+                    <Chip
+                      key={period}
+                      size="small"
+                      label={`${period.replace('_', ' ')}: ${Math.round(prob * 100)}%`}
+                      variant="outlined"
+                      sx={{ fontSize: '0.65rem', height: 18 }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            )}
           </Box>
         )}
 
@@ -454,14 +500,31 @@ function Recommendations() {
   const handleViewHistory = async (symbol) => {
     setSelectedSymbol(symbol);
     setHistoryDialogOpen(true);
-    
-    // Mock history data for now - in real implementation this would fetch from API
-    const mockHistory = [
-      { date: '2024-01-15', action: 'BUY', targetPrice: 145.20, actualPrice: 143.10, accuracy: 'Hit target in 5 days' },
-      { date: '2024-01-08', action: 'HOLD', targetPrice: 142.00, actualPrice: 141.85, accuracy: 'Target achieved' },
-      { date: '2024-01-01', action: 'BUY', targetPrice: 138.50, actualPrice: 135.20, accuracy: 'Hit target in 3 days' }
-    ];
-    setPredictionHistory(mockHistory);
+    setPredictionHistory([]); // Clear previous history
+
+    try {
+      // Fetch real history from API
+      const data = await stockApi.getRecommendationWithHistory(symbol);
+
+      if (data?.history && data.history.length > 0) {
+        // Transform API history to display format
+        const formattedHistory = data.history.map(rec => ({
+          date: formatTimestamp(rec.timestamp),
+          action: rec.recommendation_type,
+          targetPrice: parseFloat(rec.target_price) || 0,
+          actualPrice: parseFloat(rec.current_price) || 0,
+          confidence: rec.confidence,
+          rationale: rec.rationale
+        }));
+        setPredictionHistory(formattedHistory);
+      } else {
+        // No history available
+        setPredictionHistory([]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch recommendation history:', error);
+      setPredictionHistory([]);
+    }
   };
 
   return (
@@ -722,44 +785,73 @@ function Recommendations() {
         <DialogContent>
           {predictionHistory.length > 0 ? (
             <List>
-              {predictionHistory.map((item, index) => (
-                <ListItem key={index} sx={{ px: 0 }}>
-                  <Card sx={{ width: '100%' }}>
-                    <CardContent>
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                        <Box>
-                          <Typography variant="subtitle2" fontWeight="bold">
-                            {item.date}
-                          </Typography>
-                          <Chip 
-                            label={item.action}
-                            size="small"
-                            color={getActionColor(item.action)}
-                            sx={{ mt: 1 }}
-                          />
+              {predictionHistory.map((item, index) => {
+                const potentialGain = item.actualPrice > 0
+                  ? ((item.targetPrice - item.actualPrice) / item.actualPrice * 100).toFixed(1)
+                  : null;
+                const isPositive = potentialGain && parseFloat(potentialGain) > 0;
+
+                return (
+                  <ListItem key={index} sx={{ px: 0 }}>
+                    <Card sx={{ width: '100%' }}>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                          <Box>
+                            <Typography variant="subtitle2" fontWeight="bold">
+                              {item.date}
+                            </Typography>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1 }}>
+                              <Chip
+                                label={item.action}
+                                size="small"
+                                color={getActionColor(item.action)}
+                              />
+                              {item.confidence && (
+                                <Chip
+                                  label={`${Math.round(item.confidence * 100)}% conf`}
+                                  size="small"
+                                  variant="outlined"
+                                />
+                              )}
+                            </Box>
+                          </Box>
+                          <Box sx={{ textAlign: 'right' }}>
+                            <Typography variant="body2" color="text.secondary">
+                              Target: ${item.targetPrice > 0 ? item.targetPrice.toFixed(2) : 'N/A'}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              Price at rec: ${item.actualPrice > 0 ? item.actualPrice.toFixed(2) : 'N/A'}
+                            </Typography>
+                            {potentialGain && (
+                              <Typography
+                                variant="body2"
+                                fontWeight="bold"
+                                color={isPositive ? 'success.main' : 'error.main'}
+                              >
+                                {isPositive ? '+' : ''}{potentialGain}% target
+                              </Typography>
+                            )}
+                          </Box>
                         </Box>
-                        <Box sx={{ textAlign: 'right' }}>
-                          <Typography variant="body2" color="text.secondary">
-                            Target: ${item.targetPrice.toFixed(2)}
+                        {item.rationale && (
+                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                            {item.rationale}
                           </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            Entry: ${item.actualPrice.toFixed(2)}
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <Typography variant="body2" color="success.main" fontWeight="bold">
-                        {item.accuracy}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </ListItem>
-              ))}
+                        )}
+                      </CardContent>
+                    </Card>
+                  </ListItem>
+                );
+              })}
             </List>
           ) : (
             <Box sx={{ textAlign: 'center', py: 4 }}>
               <ShowChart sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />
-              <Typography color="text.secondary">
+              <Typography color="text.secondary" sx={{ mb: 1 }}>
                 No prediction history available for {selectedSymbol}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Historical recommendations will appear here as they are generated.
               </Typography>
             </Box>
           )}

@@ -64,6 +64,7 @@ class ImprovedAuthService extends BaseService {
             password_hash VARCHAR(255) NOT NULL,
             plan VARCHAR(50) DEFAULT 'free',
             verified BOOLEAN DEFAULT false,
+            is_admin BOOLEAN DEFAULT false,
             verification_token UUID,
             reset_token UUID,
             reset_token_expires TIMESTAMPTZ,
@@ -71,6 +72,22 @@ class ImprovedAuthService extends BaseService {
             updated_at TIMESTAMPTZ DEFAULT now()
           )
         `, [], 'init_users_table');
+
+        // Add is_admin column if it doesn't exist (for existing databases)
+        await this.executeQuery(`
+          DO $$
+          BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                          WHERE table_name='users' AND column_name='is_admin') THEN
+              ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT false;
+            END IF;
+          END $$;
+        `, [], 'add_is_admin_column');
+
+        // Set cdameworth@gmail.com as admin
+        await this.executeQuery(`
+          UPDATE users SET is_admin = true WHERE email = 'cdameworth@gmail.com'
+        `, [], 'set_admin_user');
 
         // Create index for better performance
         await this.executeQuery(
@@ -146,9 +163,9 @@ class ImprovedAuthService extends BaseService {
       
       // Database storage
       const result = await this.executeQuery(
-        `INSERT INTO users (id, email, password_hash, plan, verification_token) 
-         VALUES ($1, $2, $3, $4, $5) 
-         RETURNING id, email, plan, verified, created_at`,
+        `INSERT INTO users (id, email, password_hash, plan, verification_token)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, email, plan, verified, is_admin, created_at`,
         [userId, normalizedEmail, passwordHash, plan, verificationToken],
         'registerUser'
       );
@@ -192,7 +209,8 @@ class ImprovedAuthService extends BaseService {
           id: user.id,
           email: user.email,
           plan: user.plan,
-          verified: user.verified
+          verified: user.verified,
+          is_admin: user.is_admin || false
         }
       };
     }, 'loginUser', { email: normalizedEmail });

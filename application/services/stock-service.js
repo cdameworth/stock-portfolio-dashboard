@@ -132,19 +132,22 @@ class StockService {
           return {
             recommendation_id: rec.recommendation_id || `${rec.symbol}_${Date.now()}`,
             symbol: rec.symbol,
-            recommendation_type: rec.prediction || 'HOLD', // API returns 'prediction' (BUY/SELL/HOLD), default to HOLD
-            prediction_score: rec.confidence || 0.5, // Use confidence as prediction score, default to 0.5
+            recommendation_type: rec.prediction || rec.recommendation_type || 'HOLD', // API returns 'prediction' (BUY/SELL/HOLD), default to HOLD
+            prediction_score: rec.confidence || rec.prediction_score || 0.5, // Use confidence as prediction score, default to 0.5
             confidence: rec.confidence || 0.5,
             current_price: validatedPrice.price,
             target_price: rec.target_price || 0,
-            risk_level: this.mapRiskScore(rec.risk_score), // Convert risk_score to risk_level
-            ranking: null, // Not provided by API
+            risk_level: this.mapRiskScore(rec.risk_score) || rec.risk_level, // Convert risk_score to risk_level
+            ranking: rec.ranking || null, // Not provided by API
             rationale: rec.rationale || `ML prediction with ${((rec.confidence || 0.5) * 100).toFixed(1)}% confidence`,
             timestamp: rec.timestamp || new Date().toISOString(),
             generated_at: rec.timestamp || new Date().toISOString(),
             upside_potential: rec.upside_potential || 0,
             model_version: rec.model_version || 'unknown',
             features_used: rec.features_used || 0,
+            // Time-to-hit prediction from stock-analytics-engine
+            time_to_hit_prediction: rec.time_to_hit_prediction || null,
+            timing_summary: rec.timing_summary || null,
             metadata: {
               ttl: rec.ttl,
               source: 'stock-analytics-api',
@@ -220,31 +223,49 @@ class StockService {
       const response = await this.httpClient.get(`/recommendations/${symbol.toUpperCase()}`, { params });
 
       // Transform single recommendation response
-      const rec = response.data;
+      // Handle both direct recommendation and wrapped recommendation response
+      const recData = response.data.recommendation || response.data;
       const transformedRecommendation = {
-        recommendation_id: rec.recommendation_id || `${rec.symbol}_${Date.now()}`,
-        symbol: rec.symbol,
-        recommendation_type: rec.prediction || 'HOLD', // API returns 'prediction' (BUY/SELL/HOLD), default to HOLD
-        prediction_score: rec.confidence || 0.5, // Use confidence as prediction score, default to 0.5
-        confidence: rec.confidence || 0.5,
-        current_price: rec.current_price || 0,
-        target_price: rec.target_price || 0,
-        risk_level: this.mapRiskScore(rec.risk_score), // Convert risk_score to risk_level
-        ranking: 1, // Single recommendation is rank 1
-        rationale: rec.rationale || `ML prediction with ${((rec.confidence || 0.5) * 100).toFixed(1)}% confidence`,
-        timestamp: rec.timestamp || new Date().toISOString(),
-        generated_at: rec.timestamp || new Date().toISOString(),
-        upside_potential: rec.upside_potential || 0,
-        model_version: rec.model_version || 'unknown',
-        features_used: rec.features_used || 0,
+        recommendation_id: recData.recommendation_id || `${recData.symbol}_${Date.now()}`,
+        symbol: recData.symbol,
+        recommendation_type: recData.prediction || recData.recommendation_type || 'HOLD',
+        prediction_score: recData.confidence || recData.prediction_score || 0.5,
+        confidence: recData.confidence || 0.5,
+        current_price: recData.current_price || 0,
+        target_price: recData.target_price || 0,
+        risk_level: this.mapRiskScore(recData.risk_score) || recData.risk_level,
+        ranking: recData.ranking || 1,
+        rationale: recData.rationale || `ML prediction with ${((recData.confidence || 0.5) * 100).toFixed(1)}% confidence`,
+        timestamp: recData.timestamp || new Date().toISOString(),
+        generated_at: recData.timestamp || new Date().toISOString(),
+        upside_potential: recData.upside_potential || 0,
+        model_version: recData.model_version || 'unknown',
+        features_used: recData.features_used || 0,
+        // Time-to-hit prediction from stock-analytics-engine
+        time_to_hit_prediction: recData.time_to_hit_prediction || null,
+        timing_summary: recData.timing_summary || null,
         metadata: {
-          ttl: rec.ttl,
+          ttl: recData.ttl,
           source: 'stock-analytics-api'
         }
       };
 
+      // Transform history if included
+      const history = (response.data.recommendation?.history || response.data.history || []).map(histRec => ({
+        recommendation_id: histRec.recommendation_id,
+        symbol: histRec.symbol,
+        recommendation_type: histRec.prediction || histRec.recommendation_type || 'HOLD',
+        confidence: histRec.confidence || 0.5,
+        current_price: histRec.current_price || 0,
+        target_price: histRec.target_price || 0,
+        risk_level: this.mapRiskScore(histRec.risk_score) || histRec.risk_level,
+        rationale: histRec.rationale,
+        timestamp: histRec.timestamp
+      }));
+
       const data = {
         recommendation: transformedRecommendation,
+        history: history,
         symbol: symbol,
         source: 'stock-analytics-api',
         cached: false,
