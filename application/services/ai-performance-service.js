@@ -1,7 +1,7 @@
 'use strict';
 
 const axios = require('axios');
-const yahooFinance = require('yahoo-finance2').default;
+const YahooFinance = require('yahoo-finance2').default;
 const NodeCache = require('node-cache');
 const {
   traceAIOperation,
@@ -20,15 +20,18 @@ class AIPerformanceService {
         this.localApiUrl = options.localApiUrl;
         this.stockService = options.stockService;  // Direct access to stock service
         this.apiKey = process.env.STOCK_API_KEY || 't8RkVcn41a6vhFAIhfHBf6AoxvtqVDPg6Q9rN5S6';
-        
+
         // Cache settings
         this.priceCache = new NodeCache({ stdTTL: 300 }); // 5 minute price cache
         this.analysisCache = new NodeCache({ stdTTL: 1800 }); // 30 minute analysis cache
-        
+
         // Rate limiting for Yahoo Finance API
         this.lastYahooCall = 0;
         this.yahooCallDelay = 1000; // 1 second between calls
-        
+
+        // Initialize yahoo-finance2 v3 instance
+        this.yahooFinance = new YahooFinance();
+
         console.log('AI Performance Service initialized with Yahoo Finance integration');
     }
 
@@ -72,7 +75,7 @@ class AIPerformanceService {
                 recordSpanEvent('yahoo_finance.request_started', { symbol });
                 console.log(`Fetching current price for ${symbol} from Yahoo Finance...`);
 
-                const quote = await yahooFinance.quote(symbol);
+                const quote = await this.yahooFinance.quote(symbol);
                 const price = quote.regularMarketPrice || quote.price || null;
 
                 if (price) {
@@ -136,7 +139,7 @@ class AIPerformanceService {
             const endDate = new Date(date.getTime() + (24 * 60 * 60 * 1000)); // Next day
             const startDate = new Date(date.getTime() - (7 * 24 * 60 * 60 * 1000)); // Week before
             
-            const historical = await yahooFinance.historical(symbol, {
+            const historical = await this.yahooFinance.historical(symbol, {
                 period1: startDate,
                 period2: endDate,
                 interval: '1d'
@@ -208,7 +211,7 @@ class AIPerformanceService {
 
             // Fetch S&P 500 data
             await this.rateLimitYahoo();
-            const sp500Data = await yahooFinance.historical('^GSPC', {
+            const sp500Data = await this.yahooFinance.historical('^GSPC', {
                 period1: startDate,
                 period2: now,
                 interval: '1d'
@@ -216,7 +219,7 @@ class AIPerformanceService {
 
             // Fetch NASDAQ data
             await this.rateLimitYahoo();
-            const nasdaqData = await yahooFinance.historical('^IXIC', {
+            const nasdaqData = await this.yahooFinance.historical('^IXIC', {
                 period1: startDate,
                 period2: now,
                 interval: '1d'
