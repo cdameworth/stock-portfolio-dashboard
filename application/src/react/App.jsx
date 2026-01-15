@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Container, Box, AppBar, Toolbar, Typography, Button, IconButton, Menu, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Switch, FormControlLabel, Divider } from '@mui/material';
-import { AccountCircle, Dashboard, TrendingUp, Settings, Logout } from '@mui/icons-material';
+import { AccountCircle, Dashboard, TrendingUp, Settings, Logout, AdminPanelSettings } from '@mui/icons-material';
 import { AppProvider, useAuth, useNavigation, useTheme, useApp } from './contexts/AppContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { LoadingSpinner, PageLoadingOverlay } from './components/LoadingState.jsx';
@@ -8,8 +8,16 @@ import AuthDialog from './components/AuthDialog.jsx';
 import DashboardPage from './pages/Dashboard.jsx';
 import Portfolio from './pages/Portfolio.jsx';
 import Recommendations from './pages/Recommendations.jsx';
+import Admin from './pages/Admin.jsx';
 import { useAuthTracing, usePerformanceTracing } from './utils/useTracing.js';
 import { browserTracer } from './services/browser-tracing.js';
+
+// Helper to check if user is admin
+const isAdminUser = (user) => {
+  const isAdmin = user?.role === 'admin' || user?.is_admin || user?.email?.endsWith('@stockportfolio.com');
+  console.log('isAdminUser check:', { user, isAdmin, is_admin: user?.is_admin, email: user?.email });
+  return isAdmin;
+};
 
 // Main App Content Component
 function AppContent() {
@@ -176,6 +184,21 @@ function AppContent() {
             <Recommendations />
           </ErrorBoundary>
         );
+      case 'admin':
+        // Admin page - protected route for admin users only
+        if (isAdminUser(user)) {
+          return (
+            <ErrorBoundary>
+              <Admin />
+            </ErrorBoundary>
+          );
+        }
+        // If not admin, redirect to dashboard
+        return (
+          <ErrorBoundary>
+            <DashboardPage />
+          </ErrorBoundary>
+        );
       default:
         return (
           <ErrorBoundary>
@@ -276,6 +299,13 @@ function AppContent() {
                   <TrendingUp sx={{ mr: 1 }} />
                   AI Insights
                 </MenuItem>
+                {isAdminUser(user) && (
+                  <MenuItem onClick={() => { setCurrentPage('admin'); handleMenuClose(); }}>
+                    <AdminPanelSettings sx={{ mr: 1 }} />
+                    Admin Dashboard
+                  </MenuItem>
+                )}
+                <Divider sx={{ my: 1 }} />
                 <MenuItem onClick={handleLogout}>
                   <Logout sx={{ mr: 1 }} />
                   Sign Out

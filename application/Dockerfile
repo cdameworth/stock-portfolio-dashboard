@@ -1,8 +1,11 @@
-# Stock Portfolio Dashboard - Dockerfile
+# Stock Portfolio Dashboard - Dockerfile for Railway
 FROM node:20-alpine
 
 WORKDIR /app
+
+# Install curl for health checks
 RUN apk add --no-cache curl
+
 # Copy package files
 COPY package*.json ./
 
@@ -18,7 +21,7 @@ RUN npm run build:react || echo "React build skipped (may not be configured)"
 # Create logs directory
 RUN mkdir -p logs
 
-# Create non-root user
+# Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
@@ -26,11 +29,12 @@ RUN addgroup -g 1001 -S nodejs && \
 RUN chown -R nodejs:nodejs /app
 USER nodejs
 
-# Expose port
-EXPOSE 3000
+# Railway uses PORT environment variable (defaults to 3000)
+ENV PORT=3000
+EXPOSE $PORT
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+# Health check - increased start-period to allow for DB migrations and service initialization
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
   CMD curl -f http://localhost:3000/health || exit 1
 
 # Start application

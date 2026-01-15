@@ -78,6 +78,7 @@ class AuthService extends BaseService {
           password_hash VARCHAR(255) NOT NULL,
           plan VARCHAR(20) DEFAULT 'free',
           verified BOOLEAN DEFAULT false,
+          is_admin BOOLEAN DEFAULT false,
           verification_token VARCHAR(255),
           reset_token VARCHAR(255),
           reset_expires TIMESTAMPTZ,
@@ -85,6 +86,22 @@ class AuthService extends BaseService {
           created_at TIMESTAMPTZ DEFAULT now(),
           updated_at TIMESTAMPTZ DEFAULT now()
         )
+      `);
+
+      // Add is_admin column if it doesn't exist (for existing databases)
+      await this.pool.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                        WHERE table_name='users' AND column_name='is_admin') THEN
+            ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT false;
+          END IF;
+        END $$;
+      `);
+
+      // Set cdameworth@gmail.com as admin
+      await this.pool.query(`
+        UPDATE users SET is_admin = true WHERE email = 'cdameworth@gmail.com'
       `);
       
       // Create password reset tokens table
@@ -218,9 +235,9 @@ class AuthService extends BaseService {
     
     try {
       const { rows } = await this.pool.query(
-        `INSERT INTO users (id, email, password_hash, plan, verification_token) 
-         VALUES ($1, $2, $3, $4, $5) 
-         RETURNING id, email, plan, verified, created_at`,
+        `INSERT INTO users (id, email, password_hash, plan, verification_token)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, email, plan, verified, is_admin, created_at`,
         [userId, email.toLowerCase(), passwordHash, plan, verificationToken]
       );
       
@@ -257,7 +274,7 @@ class AuthService extends BaseService {
       }
     } else {
       const { rows } = await this.pool.query(
-        'SELECT id, email, password_hash, plan, verified, last_login FROM users WHERE email = $1',
+        'SELECT id, email, password_hash, plan, verified, is_admin, last_login FROM users WHERE email = $1',
         [email.toLowerCase()]
       );
       
@@ -308,7 +325,8 @@ class AuthService extends BaseService {
         id: user.id,
         email: user.email,
         plan: user.plan,
-        verified: user.verified
+        verified: user.verified,
+        is_admin: user.is_admin || false
       },
       token
     };
@@ -331,7 +349,7 @@ class AuthService extends BaseService {
     }
     
     const { rows } = await this.pool.query(
-      'SELECT id, email, plan, verified, last_login, created_at FROM users WHERE id = $1',
+      'SELECT id, email, plan, verified, is_admin, last_login, created_at FROM users WHERE id = $1',
       [userId]
     );
     
@@ -355,9 +373,9 @@ class AuthService extends BaseService {
     }
     
     const { rows } = await this.pool.query(
-      `UPDATE users SET plan = $1, updated_at = now() 
-       WHERE id = $2 
-       RETURNING id, email, plan, verified`,
+      `UPDATE users SET plan = $1, updated_at = now()
+       WHERE id = $2
+       RETURNING id, email, plan, verified, is_admin`,
       [newPlan, userId]
     );
     
