@@ -36,8 +36,11 @@ const AuthService = require('./services/auth-service');
 const AIPerformanceService = require('./services/ai-performance-service');
 const DatabaseService = require('./services/database-service');
 const RecommendationSyncService = require('./services/recommendation-sync-service');
+const AdminService = require('./services/admin-service');
 // Import business metrics
 const { businessMetrics } = require('./business-metrics');
+// Import admin middleware
+const { adminMiddleware } = require('./middleware/admin');
 
 // Import browser telemetry middleware
 const {
@@ -107,6 +110,15 @@ const aiPerformanceService = new AIPerformanceService({
 
 // Initialize database service
 const databaseService = new DatabaseService({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD
+});
+
+// Initialize admin service
+const adminService = new AdminService({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT || 5432,
   database: process.env.DB_NAME,
@@ -1297,6 +1309,122 @@ app.use((err, req, res, next) => {
     error: 'Internal server error',
     requestId: req.id 
   });
+});
+
+// ==================== ADMIN API ROUTES ====================
+
+// Get all users (admin only)
+app.get('/api/admin/users', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { page, limit, search, role, sortBy, sortOrder } = req.query;
+    const result = await adminService.getUsers({
+      page: parseInt(page) || 1, limit: parseInt(limit) || 20,
+      search, role, sortBy, sortOrder
+    });
+    res.json(result);
+  } catch (error) {
+    logger.error('Error getting users:', error);
+    res.status(500).json({ error: 'Failed to get users' });
+  }
+});
+
+// Get single user (admin only)
+app.get('/api/admin/users/:userId', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const user = await adminService.getUserById(parseInt(req.params.userId));
+    res.json(user);
+  } catch (error) {
+    logger.error('Error getting user:', error);
+    res.status(error.message === 'User not found' ? 404 : 500).json({ error: error.message });
+  }
+});
+
+// Update user (admin only)
+app.put('/api/admin/users/:userId', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const user = await adminService.updateUser(parseInt(req.params.userId), req.body, req.user.userId);
+    res.json(user);
+  } catch (error) {
+    logger.error('Error updating user:', error);
+    res.status(error.message === 'User not found' ? 404 : 500).json({ error: error.message });
+  }
+});
+
+// Delete user (admin only)
+app.delete('/api/admin/users/:userId', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const result = await adminService.deleteUser(parseInt(req.params.userId), req.user.userId);
+    res.json(result);
+  } catch (error) {
+    logger.error('Error deleting user:', error);
+    res.status(error.message === 'User not found' ? 404 : 500).json({ error: error.message });
+  }
+});
+
+// Get extended system health (admin only)
+app.get('/api/admin/system/health', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const health = await adminService.getExtendedSystemHealth();
+    res.json(health);
+  } catch (error) {
+    logger.error('Error getting system health:', error);
+    res.status(500).json({ error: 'Failed to get system health' });
+  }
+});
+
+// Get database stats (admin only)
+app.get('/api/admin/system/database', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const stats = await adminService.getDatabaseStats();
+    res.json(stats);
+  } catch (error) {
+    logger.error('Error getting database stats:', error);
+    res.status(500).json({ error: 'Failed to get database stats' });
+  }
+});
+
+// Get system config (admin only)
+app.get('/api/admin/config', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const config = await adminService.getSystemConfig();
+    res.json(config);
+  } catch (error) {
+    logger.error('Error getting system config:', error);
+    res.status(500).json({ error: 'Failed to get system config' });
+  }
+});
+
+// Update system config (admin only)
+app.put('/api/admin/config/:key', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const result = await adminService.updateSystemConfig(req.params.key, req.body.value, req.user.userId);
+    res.json(result);
+  } catch (error) {
+    logger.error('Error updating system config:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get audit log (admin only)
+app.get('/api/admin/audit-log', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { page, limit, action, adminUserId, since } = req.query;
+    const result = await adminService.getAuditLog({
+      page: parseInt(page) || 1, limit: parseInt(limit) || 50,
+      action, adminUserId: adminUserId ? parseInt(adminUserId) : undefined, since
+    });
+    res.json(result);
+  } catch (error) {
+    logger.error('Error getting audit log:', error);
+    res.status(500).json({ error: 'Failed to get audit log' });
+  }
+});
+
+// Check if current user is admin
+app.get('/api/admin/check', authMiddleware, (req, res) => {
+  const isAdmin = req.user.isAdmin || req.user.is_admin || req.user.role === 'admin' ||
+                  req.user.email?.endsWith('@stockportfolio.com');
+  res.json({ isAdmin, userId: req.user.userId });
 });
 
 // 404 handler

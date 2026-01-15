@@ -222,6 +222,118 @@ export const adminApi = {
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     return response.json();
+  },
+
+  // ==================== USER MANAGEMENT ====================
+
+  // Get all users with pagination
+  getUsers: async (options = {}) => {
+    const params = new URLSearchParams();
+    if (options.page) params.append('page', options.page);
+    if (options.limit) params.append('limit', options.limit);
+    if (options.search) params.append('search', options.search);
+    if (options.role) params.append('role', options.role);
+    if (options.sortBy) params.append('sortBy', options.sortBy);
+    if (options.sortOrder) params.append('sortOrder', options.sortOrder);
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/users?${params}`, {
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    return response.json();
+  },
+
+  // Get single user
+  getUser: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    return response.json();
+  },
+
+  // Update user
+  updateUser: async (userId, updates) => {
+    const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
+      method: 'PUT',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    return response.json();
+  },
+
+  // Delete user
+  deleteUser: async (userId) => {
+    const response = await fetch(`${API_BASE_URL}/api/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    return response.json();
+  },
+
+  // ==================== SYSTEM MANAGEMENT ====================
+
+  // Get extended system health
+  getExtendedHealth: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/admin/system/health`, {
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    return response.json();
+  },
+
+  // Get database stats
+  getDatabaseStats: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/admin/system/database`, {
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    return response.json();
+  },
+
+  // Get system config
+  getConfig: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/admin/config`, {
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    return response.json();
+  },
+
+  // Update system config
+  updateConfig: async (key, value) => {
+    const response = await fetch(`${API_BASE_URL}/api/admin/config/${key}`, {
+      method: 'PUT',
+      headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ value })
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    return response.json();
+  },
+
+  // Get audit log
+  getAuditLog: async (options = {}) => {
+    const params = new URLSearchParams();
+    if (options.page) params.append('page', options.page);
+    if (options.limit) params.append('limit', options.limit);
+    if (options.action) params.append('action', options.action);
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/audit-log?${params}`, {
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    return response.json();
+  },
+
+  // Check admin status
+  checkAdmin: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/admin/check`, {
+      headers: getAuthHeaders()
+    });
+    if (!response.ok) return { isAdmin: false };
+    return response.json();
   }
 };
 
