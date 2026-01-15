@@ -6,9 +6,9 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
 -- Add role column for granular role management
 ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'user';
 
--- Create indexes
-CREATE INDEX IF NOT EXISTS idx_users_is_admin ON users(is_admin);
-CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+-- Note: Indexes for is_admin and role columns are created in migration 011
+-- because ADD COLUMN IF NOT EXISTS doesn't make columns visible within
+-- the same transaction for index creation
 
 -- Create admin_audit_log table
 CREATE TABLE IF NOT EXISTS admin_audit_log (
