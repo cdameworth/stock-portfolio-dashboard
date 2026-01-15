@@ -1,19 +1,35 @@
--- Migration: Create all indexes
--- Tables and columns guaranteed to exist after migration 012 commits
+-- Migration: Ensure all required tables exist (defensive)
+-- Earlier migrations may have been marked complete without actually running
 
--- Indexes for recommendation_outcomes table
-CREATE INDEX IF NOT EXISTS idx_outcomes_recommendation ON recommendation_outcomes(recommendation_id);
-CREATE INDEX IF NOT EXISTS idx_outcomes_symbol ON recommendation_outcomes(symbol);
-CREATE INDEX IF NOT EXISTS idx_outcomes_date ON recommendation_outcomes(check_date);
+-- Ensure recommendation_outcomes table exists
+CREATE TABLE IF NOT EXISTS recommendation_outcomes (
+    id SERIAL PRIMARY KEY,
+    recommendation_id VARCHAR(255) NOT NULL,
+    symbol VARCHAR(10) NOT NULL,
+    check_date DATE NOT NULL,
+    check_price DECIMAL(10, 2),
+    price_change_percent DECIMAL(8, 4),
+    target_achieved BOOLEAN DEFAULT FALSE,
+    stop_loss_triggered BOOLEAN DEFAULT FALSE,
+    days_since_recommendation INTEGER,
+    outcome_status VARCHAR(20) DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- Index for risk_level column on recommendations
-CREATE INDEX IF NOT EXISTS idx_recommendations_risk ON recommendations(risk_level);
+-- Ensure admin_audit_log table exists
+CREATE TABLE IF NOT EXISTS admin_audit_log (
+    id SERIAL PRIMARY KEY,
+    admin_user_id INTEGER NOT NULL,
+    action VARCHAR(100) NOT NULL,
+    target_type VARCHAR(50),
+    target_id VARCHAR(255),
+    details JSONB DEFAULT '{}',
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
--- Indexes for users table columns
-CREATE INDEX IF NOT EXISTS idx_users_is_admin ON users(is_admin);
-CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
-
--- Indexes for admin_audit_log table
-CREATE INDEX IF NOT EXISTS idx_admin_audit_admin ON admin_audit_log(admin_user_id);
-CREATE INDEX IF NOT EXISTS idx_admin_audit_action ON admin_audit_log(action);
-CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_log(created_at);
+-- Ensure required columns exist
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS role VARCHAR(50) DEFAULT 'user';
+ALTER TABLE recommendations ADD COLUMN IF NOT EXISTS risk_level VARCHAR(10) DEFAULT 'MEDIUM';
