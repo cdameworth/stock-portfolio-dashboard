@@ -36,6 +36,7 @@ const AuthService = require('./services/auth-service');
 const AIPerformanceService = require('./services/ai-performance-service');
 const DatabaseService = require('./services/database-service');
 const RecommendationSyncService = require('./services/recommendation-sync-service');
+const { getMarketDataCacheService } = require('./services/market-data-cache-service');
 // Import business metrics
 const { businessMetrics } = require('./business-metrics');
 
@@ -150,6 +151,9 @@ const recommendationSyncService = new RecommendationSyncService({
   databaseService: databaseService,
   stockService: stockService
 });
+
+// Initialize market data cache service (initialized after Redis connects)
+let marketDataCacheService = null;
 
 // Security middleware
 app.use(helmet({
@@ -313,6 +317,70 @@ app.get('/api/price/:symbol', async (req, res) => {
   } catch (error) {
     logger.error(`Error getting price for ${req.params.symbol}:`, error);
     res.status(500).json({ error: 'Failed to get price' });
+  }
+});
+
+// Market data cache status endpoint
+app.get('/api/market-cache/status', (req, res) => {
+  try {
+    if (!marketDataCacheService) {
+      return res.status(503).json({
+        error: 'Market data cache service not initialized',
+        timestamp: new Date().toISOString()
+      });
+    }
+    const status = marketDataCacheService.getStatus();
+    res.json({
+      ...status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Error getting market cache status:', error);
+    res.status(500).json({ error: 'Failed to get market cache status' });
+  }
+});
+
+// Get cached price (uses proactive cache, falls back to live fetch)
+app.get('/api/market-cache/price/:symbol', async (req, res) => {
+  try {
+    if (!marketDataCacheService) {
+      return res.status(503).json({ error: 'Market data cache service not initialized' });
+    }
+    const { symbol } = req.params;
+    const priceData = await marketDataCacheService.getPrice(symbol.toUpperCase());
+    if (!priceData) {
+      return res.status(404).json({ error: `No price data for ${symbol}` });
+    }
+    res.json({
+      symbol: symbol.toUpperCase(),
+      ...priceData,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error(`Error getting cached price for ${req.params.symbol}:`, error);
+    res.status(500).json({ error: 'Failed to get cached price' });
+  }
+});
+
+// Get multiple cached prices
+app.post('/api/market-cache/prices', async (req, res) => {
+  try {
+    if (!marketDataCacheService) {
+      return res.status(503).json({ error: 'Market data cache service not initialized' });
+    }
+    const { symbols } = req.body;
+    if (!Array.isArray(symbols) || symbols.length === 0) {
+      return res.status(400).json({ error: 'symbols array required' });
+    }
+    const prices = await marketDataCacheService.getPrices(symbols);
+    res.json({
+      prices: Object.fromEntries(prices),
+      count: prices.size,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    logger.error('Error getting cached prices:', error);
+    res.status(500).json({ error: 'Failed to get cached prices' });
   }
 });
 
@@ -1307,12 +1375,18 @@ app.use((req, res) => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   logger.info('SIGTERM received, shutting down gracefully');
+  if (marketDataCacheService) {
+    await marketDataCacheService.shutdown();
+  }
   await recommendationSyncService.shutdown();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   logger.info('SIGINT received, shutting down gracefully');
+  if (marketDataCacheService) {
+    await marketDataCacheService.shutdown();
+  }
   await recommendationSyncService.shutdown();
   process.exit(0);
 });
@@ -1320,24 +1394,27 @@ process.on('SIGINT', async () => {
 // Start server
 app.listen(PORT, '0.0.0.0', async () => {
   // Connect to Redis if configured (non-blocking)
+  let connectedRedisClient = null;
   if (redisClient) {
-    redisClient.connect().then(() => {
+    try {
+      await redisClient.connect();
       logger.info('Redis connected successfully');
       useRedis = true;
-    }).catch((error) => {
+      connectedRedisClient = redisClient;
+    } catch (error) {
       logger.warn('Redis connection failed, using memory cache:', error.message);
       useRedis = false;
-    });
+    }
   } else {
     logger.info('Using in-memory cache (node-cache) - Redis not configured');
   }
   logger.info(`Stock Portfolio Dashboard running on port ${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
   logger.info(`Stock Analytics API: ${process.env.STOCK_ANALYTICS_API_URL || 'not configured'}`);
-  
+
   // Initialize metrics
   metricsService.initializeMetrics();
-  
+
   // Initialize database and recommendation sync
   try {
     // Run database migrations first
@@ -1348,13 +1425,38 @@ app.listen(PORT, '0.0.0.0', async () => {
     } catch (migrationError) {
       logger.warn('Database migrations failed, continuing anyway:', migrationError.message);
     }
-    
+
     await recommendationSyncService.initialize();
     recommendationSyncService.startSync();
     logger.info('Database and recommendation sync services started');
   } catch (error) {
     logger.error('Failed to start database services:', error);
     logger.warn('Running without database persistence');
+  }
+
+  // Initialize market data cache service
+  try {
+    marketDataCacheService = getMarketDataCacheService({
+      redisClient: connectedRedisClient,
+      databaseService: databaseService,
+      portfolioService: portfolioService,
+      redisTTL: 60,      // 60 second Redis TTL
+      memoryTTL: 30,     // 30 second memory TTL
+      fetchIntervalMs: 30000,         // 30 seconds during market hours
+      extendedHoursIntervalMs: 60000, // 1 minute during extended hours
+      closedMarketIntervalMs: 300000, // 5 minutes when market closed
+      maxSymbolsPerFetch: 50
+    });
+
+    await marketDataCacheService.initialize();
+    marketDataCacheService.start();
+    logger.info('Market data cache service started', {
+      marketState: marketDataCacheService.getMarketState(),
+      watchedSymbols: marketDataCacheService.watchedSymbols.size
+    });
+  } catch (error) {
+    logger.error('Failed to start market data cache service:', error);
+    logger.warn('Running without proactive market data caching');
   }
 });
 
