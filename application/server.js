@@ -37,6 +37,7 @@ const AIPerformanceService = require('./services/ai-performance-service');
 const DatabaseService = require('./services/database-service');
 const RecommendationSyncService = require('./services/recommendation-sync-service');
 const { getMarketDataCacheService } = require('./services/market-data-cache-service');
+const AdminService = require('./services/admin-service');
 // Import business metrics
 const { businessMetrics } = require('./business-metrics');
 // Import admin middleware
