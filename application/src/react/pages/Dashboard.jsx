@@ -175,34 +175,43 @@ function Dashboard() {
         ]);
 
         let baseData = {
-          accuracy: 67,
-          totalPredictions: 156,
-          successfulTrades: 104,
-          averageReturn: 8.4,
-          buyAccuracy: 72,
-          sellAccuracy: 65,
-          holdAccuracy: 58,
+          accuracy: 0,
+          totalPredictions: 0,
+          successfulTrades: 0,
+          averageReturn: 0,
+          buyAccuracy: 0,
+          sellAccuracy: 0,
+          holdAccuracy: 0,
           bestPerformer: 'BUY'
         };
 
         if (perfResponse.ok) {
           const data = await perfResponse.json();
-          baseData = {
-            ...baseData,
-            accuracy: Math.round((data.hit_rate || 0.65) * 100),
-            totalPredictions: data.total_predictions || 156,
-            successfulTrades: Math.round((data.total_predictions || 156) * (data.hit_rate || 0.65)),
-            averageReturn: data.average_return || 8.4
-          };
+          // Map backend field names to frontend expectations
+          // Backend returns: successRate (%), totalRecs, avgGain, successfulCount, aiReturn
+          const successRate = data.successRate || (data.hit_rate ? data.hit_rate * 100 : 0);
+          const totalPredictions = data.totalRecs || data.total_predictions || data.sampleSize || 0;
+          const successfulTrades = data.successfulCount || Math.round(totalPredictions * (successRate / 100));
+          const averageReturn = data.avgGain || data.aiReturn || data.average_return || 0;
+
+          if (totalPredictions > 0) {
+            baseData = {
+              ...baseData,
+              accuracy: Math.round(successRate),
+              totalPredictions,
+              successfulTrades,
+              averageReturn: Math.round(averageReturn * 10) / 10
+            };
+          }
         }
 
         // Add breakdown data if available
         if (breakdownResponse?.ok) {
           const breakdown = await breakdownResponse.json();
           if (breakdown?.breakdown) {
-            baseData.buyAccuracy = Math.round((breakdown.breakdown.BUY?.hit_rate || 0.72) * 100);
-            baseData.sellAccuracy = Math.round((breakdown.breakdown.SELL?.hit_rate || 0.65) * 100);
-            baseData.holdAccuracy = Math.round((breakdown.breakdown.HOLD?.hit_rate || 0.58) * 100);
+            baseData.buyAccuracy = Math.round((breakdown.breakdown.BUY?.hit_rate || 0) * 100);
+            baseData.sellAccuracy = Math.round((breakdown.breakdown.SELL?.hit_rate || 0) * 100);
+            baseData.holdAccuracy = Math.round((breakdown.breakdown.HOLD?.hit_rate || 0) * 100);
 
             // Determine best performer
             const accuracies = { BUY: baseData.buyAccuracy, SELL: baseData.sellAccuracy, HOLD: baseData.holdAccuracy };
@@ -214,14 +223,15 @@ function Dashboard() {
       } catch (error) {
         console.warn('AI performance data unavailable:', error);
       }
+      // Fallback only if API fails or returns no data
       return {
-        accuracy: 67,
-        totalPredictions: 156,
-        successfulTrades: 104,
-        averageReturn: 8.4,
-        buyAccuracy: 72,
-        sellAccuracy: 65,
-        holdAccuracy: 58,
+        accuracy: 0,
+        totalPredictions: 0,
+        successfulTrades: 0,
+        averageReturn: 0,
+        buyAccuracy: 0,
+        sellAccuracy: 0,
+        holdAccuracy: 0,
         bestPerformer: 'BUY'
       };
     };
