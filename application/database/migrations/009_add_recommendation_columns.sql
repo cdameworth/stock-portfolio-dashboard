@@ -85,14 +85,10 @@ CREATE TABLE IF NOT EXISTS performance_metrics (
     UNIQUE(period, metric_date)
 );
 
--- Add indexes for performance (only on pre-existing columns)
+-- Add indexes for recommendations table (pre-existing columns only)
 CREATE INDEX IF NOT EXISTS idx_recommendations_symbol ON recommendations(symbol);
 CREATE INDEX IF NOT EXISTS idx_recommendations_type ON recommendations(recommendation_type);
 CREATE INDEX IF NOT EXISTS idx_recommendations_created ON recommendations(created_at);
-CREATE INDEX IF NOT EXISTS idx_outcomes_recommendation ON recommendation_outcomes(recommendation_id);
-CREATE INDEX IF NOT EXISTS idx_outcomes_symbol ON recommendation_outcomes(symbol);
-CREATE INDEX IF NOT EXISTS idx_outcomes_date ON recommendation_outcomes(check_date);
 
--- Note: Index on risk_level will be created in a separate migration (010)
--- because ADD COLUMN IF NOT EXISTS doesn't make the column visible within
--- the same transaction for index creation
+-- Note: Indexes for recommendation_outcomes, risk_level, and other new tables/columns
+-- will be created in migration 011 after all tables exist
