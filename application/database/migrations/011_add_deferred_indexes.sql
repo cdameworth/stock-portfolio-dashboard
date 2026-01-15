@@ -15,3 +15,8 @@ CREATE INDEX IF NOT EXISTS idx_users_is_admin ON users(is_admin);
 
 -- Index for role column (added in migration 010)
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+
+-- Indexes for admin_audit_log table (created in migration 010)
+CREATE INDEX IF NOT EXISTS idx_admin_audit_admin ON admin_audit_log(admin_user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_action ON admin_audit_log(action);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_log(created_at);

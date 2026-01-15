@@ -23,9 +23,7 @@ CREATE TABLE IF NOT EXISTS admin_audit_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX IF NOT EXISTS idx_admin_audit_admin ON admin_audit_log(admin_user_id);
-CREATE INDEX IF NOT EXISTS idx_admin_audit_action ON admin_audit_log(action);
-CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_log(created_at);
+-- Note: Indexes for admin_audit_log are created in migration 011
 
 -- Create system_config table
 CREATE TABLE IF NOT EXISTS system_config (
