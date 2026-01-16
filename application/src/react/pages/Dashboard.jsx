@@ -207,11 +207,13 @@ function Dashboard() {
 
         // Add breakdown data if available
         if (breakdownResponse?.ok) {
-          const breakdown = await breakdownResponse.json();
-          if (breakdown?.breakdown) {
-            baseData.buyAccuracy = Math.round((breakdown.breakdown.BUY?.hit_rate || 0) * 100);
-            baseData.sellAccuracy = Math.round((breakdown.breakdown.SELL?.hit_rate || 0) * 100);
-            baseData.holdAccuracy = Math.round((breakdown.breakdown.HOLD?.hit_rate || 0) * 100);
+          const breakdownResp = await breakdownResponse.json();
+          // Handle nested structure: response has {breakdown: {breakdown: {BUY: ...}}}
+          const breakdownData = breakdownResp?.breakdown?.breakdown || breakdownResp?.breakdown || {};
+          if (breakdownData.BUY || breakdownData.SELL || breakdownData.HOLD) {
+            baseData.buyAccuracy = Math.round((breakdownData.BUY?.hit_rate || 0) * 100);
+            baseData.sellAccuracy = Math.round((breakdownData.SELL?.hit_rate || 0) * 100);
+            baseData.holdAccuracy = Math.round((breakdownData.HOLD?.hit_rate || 0) * 100);
 
             // Determine best performer
             const accuracies = { BUY: baseData.buyAccuracy, SELL: baseData.sellAccuracy, HOLD: baseData.holdAccuracy };
