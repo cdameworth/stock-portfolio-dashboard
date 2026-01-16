@@ -1075,6 +1075,78 @@ app.get('/api/portfolios/:portfolioId/analysis', authMiddleware, async (req, res
 
 // AI Performance Analytics endpoints
 
+// IMPORTANT: Specific routes must be defined BEFORE parameterized routes
+// Otherwise /api/ai-performance/tuning-history would match :period as "tuning-history"
+
+// Get AI performance cache statistics
+app.get('/api/ai-performance/cache/stats', async (req, res) => {
+  try {
+    const stats = aiPerformanceService.getCacheStats();
+
+    metricsService.incrementCounter('api_requests_total', { endpoint: 'ai_cache_stats' });
+    res.json({
+      ...stats,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error('Error getting AI performance cache stats:', error);
+    metricsService.incrementCounter('api_errors_total', { endpoint: 'ai_cache_stats' });
+    res.status(500).json({
+      error: 'Failed to get cache stats',
+      details: error.message
+    });
+  }
+});
+
+// Clear AI performance cache (for development/testing)
+app.post('/api/ai-performance/cache/clear', async (req, res) => {
+  try {
+    aiPerformanceService.clearCache();
+
+    logger.info('AI performance cache cleared');
+    metricsService.incrementCounter('api_requests_total', { endpoint: 'ai_cache_clear' });
+
+    res.json({
+      message: 'AI performance cache cleared successfully',
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    logger.error('Error clearing AI performance cache:', error);
+    metricsService.incrementCounter('api_errors_total', { endpoint: 'ai_cache_clear' });
+    res.status(500).json({
+      error: 'Failed to clear cache',
+      details: error.message
+    });
+  }
+});
+
+// Get AI tuning history
+app.get('/api/ai-performance/tuning-history', async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+
+    logger.info(`Getting AI tuning history for last ${days} days`);
+
+    const history = await aiPerformanceService.getTuningHistory(parseInt(days));
+
+    metricsService.incrementCounter('api_requests_total', { endpoint: 'ai_tuning_history' });
+    res.json({
+      ...history,
+      requestId: req.headers['x-request-id'] || 'unknown'
+    });
+
+  } catch (error) {
+    logger.error('Error getting AI tuning history:', error);
+    metricsService.incrementCounter('api_errors_total', { endpoint: 'ai_tuning_history' });
+    res.status(500).json({
+      error: 'Failed to get tuning history',
+      details: error.message
+    });
+  }
+});
+
 // Get AI performance metrics for a specific period
 app.get('/api/ai-performance/:period', async (req, res) => {
   try {
@@ -1203,75 +1275,6 @@ app.get('/api/ai-performance/:period/breakdown', async (req, res) => {
     metricsService.incrementCounter('api_errors_total', { endpoint: 'ai_performance_breakdown' });
     res.status(500).json({ 
       error: 'Failed to get AI performance breakdown',
-      details: error.message
-    });
-  }
-});
-
-// Clear AI performance cache (for development/testing)
-app.post('/api/ai-performance/cache/clear', async (req, res) => {
-  try {
-    aiPerformanceService.clearCache();
-    
-    logger.info('AI performance cache cleared');
-    metricsService.incrementCounter('api_requests_total', { endpoint: 'ai_cache_clear' });
-    
-    res.json({ 
-      message: 'AI performance cache cleared successfully',
-      timestamp: new Date().toISOString()
-    });
-    
-  } catch (error) {
-    logger.error('Error clearing AI performance cache:', error);
-    metricsService.incrementCounter('api_errors_total', { endpoint: 'ai_cache_clear' });
-    res.status(500).json({ 
-      error: 'Failed to clear cache',
-      details: error.message
-    });
-  }
-});
-
-// Get AI performance cache statistics
-app.get('/api/ai-performance/cache/stats', async (req, res) => {
-  try {
-    const stats = aiPerformanceService.getCacheStats();
-
-    metricsService.incrementCounter('api_requests_total', { endpoint: 'ai_cache_stats' });
-    res.json({
-      ...stats,
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error) {
-    logger.error('Error getting AI performance cache stats:', error);
-    metricsService.incrementCounter('api_errors_total', { endpoint: 'ai_cache_stats' });
-    res.status(500).json({
-      error: 'Failed to get cache stats',
-      details: error.message
-    });
-  }
-});
-
-// Get AI tuning history
-app.get('/api/ai-performance/tuning-history', async (req, res) => {
-  try {
-    const { days = 30 } = req.query;
-
-    logger.info(`Getting AI tuning history for last ${days} days`);
-
-    const history = await aiPerformanceService.getTuningHistory(parseInt(days));
-
-    metricsService.incrementCounter('api_requests_total', { endpoint: 'ai_tuning_history' });
-    res.json({
-      ...history,
-      requestId: req.headers['x-request-id'] || 'unknown'
-    });
-
-  } catch (error) {
-    logger.error('Error getting AI tuning history:', error);
-    metricsService.incrementCounter('api_errors_total', { endpoint: 'ai_tuning_history' });
-    res.status(500).json({
-      error: 'Failed to get tuning history',
       details: error.message
     });
   }
