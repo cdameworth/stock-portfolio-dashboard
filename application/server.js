@@ -1235,18 +1235,43 @@ app.post('/api/ai-performance/cache/clear', async (req, res) => {
 app.get('/api/ai-performance/cache/stats', async (req, res) => {
   try {
     const stats = aiPerformanceService.getCacheStats();
-    
+
     metricsService.incrementCounter('api_requests_total', { endpoint: 'ai_cache_stats' });
     res.json({
       ...stats,
       timestamp: new Date().toISOString()
     });
-    
+
   } catch (error) {
     logger.error('Error getting AI performance cache stats:', error);
     metricsService.incrementCounter('api_errors_total', { endpoint: 'ai_cache_stats' });
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to get cache stats',
+      details: error.message
+    });
+  }
+});
+
+// Get AI tuning history
+app.get('/api/ai-performance/tuning-history', async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+
+    logger.info(`Getting AI tuning history for last ${days} days`);
+
+    const history = await aiPerformanceService.getTuningHistory(parseInt(days));
+
+    metricsService.incrementCounter('api_requests_total', { endpoint: 'ai_tuning_history' });
+    res.json({
+      ...history,
+      requestId: req.headers['x-request-id'] || 'unknown'
+    });
+
+  } catch (error) {
+    logger.error('Error getting AI tuning history:', error);
+    metricsService.incrementCounter('api_errors_total', { endpoint: 'ai_tuning_history' });
+    res.status(500).json({
+      error: 'Failed to get tuning history',
       details: error.message
     });
   }
