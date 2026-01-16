@@ -579,6 +579,121 @@ class AIPerformanceService {
     }
 
     /**
+     * Get AI performance breakdown from stock analytics API
+     * @param {string} period - Time period (1M, 3M, 6M, 1Y)
+     */
+    async getPerformanceBreakdown(period = '1M') {
+        const cacheKey = `breakdown_${period}`;
+        const cached = this.analysisCache.get(cacheKey);
+
+        if (cached) {
+            console.log(`Using cached breakdown for period ${period}`);
+            return cached;
+        }
+
+        try {
+            console.log(`Fetching AI performance breakdown for period ${period} from stock analytics API...`);
+
+            const apiUrl = this.stockApiUrl || 'http://api-service.railway.internal';
+            const endpoint = `${apiUrl}/api/ai-performance/${period}/breakdown`;
+
+            const response = await axios.get(endpoint, {
+                headers: this.apiKey ? {
+                    'x-api-key': this.apiKey
+                } : {},
+                timeout: 30000
+            });
+
+            const breakdown = response.data;
+
+            // Cache for 30 minutes
+            this.analysisCache.set(cacheKey, breakdown);
+
+            console.log(`Got breakdown for ${period}:`, JSON.stringify(breakdown).substring(0, 200));
+            return breakdown;
+
+        } catch (error) {
+            console.error(`Error fetching AI performance breakdown for ${period}:`, error.message);
+
+            // Return fallback structure
+            return {
+                dashboard_type: 'dual_prediction_comprehensive',
+                report_period: `Last ${period === '1M' ? 30 : period === '3M' ? 90 : period === '6M' ? 180 : 365} days`,
+                executive_summary: {
+                    price_model_accuracy: 0,
+                    time_model_accuracy: 0,
+                    total_predictions: 0,
+                    system_status: 'error',
+                    error: error.message
+                },
+                detailed_analytics: {
+                    price_analytics: { total_predictions: 0 },
+                    time_analytics: { total_predictions: 0 }
+                },
+                key_metrics: {
+                    predictions_today: 0,
+                    confidence_distribution: {}
+                }
+            };
+        }
+    }
+
+    /**
+     * Get tuning history from stock analytics API
+     * @param {number} days - Number of days of history to fetch
+     */
+    async getTuningHistory(days = 30) {
+        const cacheKey = `tuning_history_${days}`;
+        const cached = this.analysisCache.get(cacheKey);
+
+        if (cached) {
+            console.log(`Using cached tuning history`);
+            return cached;
+        }
+
+        try {
+            console.log(`Fetching tuning history for last ${days} days from stock analytics API...`);
+
+            const apiUrl = this.stockApiUrl || 'http://api-service.railway.internal';
+            const endpoint = `${apiUrl}/api/ai-performance/tuning-history?days=${days}`;
+
+            const response = await axios.get(endpoint, {
+                headers: this.apiKey ? {
+                    'x-api-key': this.apiKey
+                } : {},
+                timeout: 30000
+            });
+
+            const history = response.data;
+
+            // Cache for 30 minutes
+            this.analysisCache.set(cacheKey, history);
+
+            console.log(`Got tuning history:`, JSON.stringify(history).substring(0, 200));
+            return history;
+
+        } catch (error) {
+            console.error(`Error fetching tuning history:`, error.message);
+
+            // Return fallback structure
+            return {
+                report_type: 'tuning_history',
+                report_period: `Last ${days} days`,
+                tuning_summary: {
+                    total_tuning_sessions: 0,
+                    price_model_sessions: 0,
+                    time_model_sessions: 0,
+                    error: error.message
+                },
+                recent_tuning_steps: {
+                    price_model_steps: [],
+                    time_model_steps: []
+                }
+            };
+        }
+    }
+
+    /**
      * Clear all caches
      */
     clearCache() {
