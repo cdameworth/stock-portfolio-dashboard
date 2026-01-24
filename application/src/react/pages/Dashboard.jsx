@@ -185,39 +185,83 @@ function Dashboard() {
           bestPerformer: 'BUY'
         };
 
-        if (perfResponse.ok) {
-          const data = await perfResponse.json();
-          // Map backend field names to frontend expectations
-          // Backend returns: successRate (%), totalRecs, avgGain, successfulCount, aiReturn
-          const successRate = data.successRate || (data.hit_rate ? data.hit_rate * 100 : 0);
-          const totalPredictions = data.totalRecs || data.total_predictions || data.sampleSize || 0;
-          const successfulTrades = data.successfulCount || Math.round(totalPredictions * (successRate / 100));
-          const averageReturn = data.avgGain || data.aiReturn || data.average_return || 0;
+        // Process breakdown response first (from stock analytics API) - has most complete data
+        if (breakdownResponse?.ok) {
+          const response = await breakdownResponse.json();
+          // The response is wrapped: { breakdown: { ... }, period, calculatedAt }
+          const breakdown = response?.breakdown || response;
 
-          if (totalPredictions > 0) {
+          // Handle stock analytics API structure: detailed_analytics.price_analytics
+          const priceAnalytics = breakdown?.detailed_analytics?.price_analytics;
+          const execSummary = breakdown?.executive_summary;
+
+          if (priceAnalytics || execSummary) {
+            // Get total predictions from executive summary or price analytics
+            const totalPredictions = execSummary?.total_predictions ||
+              priceAnalytics?.prediction_counts?.total_generated || 0;
+            const validatedCount = priceAnalytics?.prediction_counts?.total_validated || 0;
+
+            // Get accuracy metrics (values are decimals like 0.75)
+            const accuracyMetrics = priceAnalytics?.accuracy_metrics || {};
+            const buyAccuracy = Math.round((accuracyMetrics.buy_accuracy || 0) * 100);
+            const sellAccuracy = Math.round((accuracyMetrics.sell_accuracy || 0) * 100);
+            const holdAccuracy = Math.round((accuracyMetrics.hold_accuracy || 0) * 100);
+            const overallAccuracy = Math.round((accuracyMetrics.overall_accuracy || execSummary?.price_model_accuracy || 0) * 100);
+
+            // Calculate successful trades based on validated predictions and accuracy
+            const successfulTrades = validatedCount > 0
+              ? Math.round(validatedCount * (overallAccuracy / 100))
+              : Math.round(totalPredictions * (overallAccuracy / 100));
+
             baseData = {
               ...baseData,
-              accuracy: Math.round(successRate),
+              accuracy: overallAccuracy,
               totalPredictions,
               successfulTrades,
-              averageReturn: Math.round(averageReturn * 10) / 10
+              buyAccuracy,
+              sellAccuracy,
+              holdAccuracy
             };
+
+            // Determine best performer
+            const accuracies = { BUY: buyAccuracy, SELL: sellAccuracy, HOLD: holdAccuracy };
+            baseData.bestPerformer = Object.entries(accuracies)
+              .filter(([, acc]) => acc > 0)
+              .sort((a, b) => b[1] - a[1])[0]?.[0] || 'BUY';
+          }
+
+          // Also handle legacy local_analysis structure for backwards compatibility
+          if (breakdown?.breakdown?.BUY !== undefined) {
+            baseData.buyAccuracy = Math.round((breakdown.breakdown.BUY?.hit_rate || 0) * 100);
+            baseData.sellAccuracy = Math.round((breakdown.breakdown.SELL?.hit_rate || 0) * 100);
+            baseData.holdAccuracy = Math.round((breakdown.breakdown.HOLD?.hit_rate || 0) * 100);
+
+            const accuracies = { BUY: baseData.buyAccuracy, SELL: baseData.sellAccuracy, HOLD: baseData.holdAccuracy };
+            baseData.bestPerformer = Object.entries(accuracies)
+              .filter(([, acc]) => acc > 0)
+              .sort((a, b) => b[1] - a[1])[0]?.[0] || 'BUY';
           }
         }
 
-        // Add breakdown data if available
-        if (breakdownResponse?.ok) {
-          const breakdownResp = await breakdownResponse.json();
-          // Handle nested structure: response has {breakdown: {breakdown: {BUY: ...}}}
-          const breakdownData = breakdownResp?.breakdown?.breakdown || breakdownResp?.breakdown || {};
-          if (breakdownData.BUY || breakdownData.SELL || breakdownData.HOLD) {
-            baseData.buyAccuracy = Math.round((breakdownData.BUY?.hit_rate || 0) * 100);
-            baseData.sellAccuracy = Math.round((breakdownData.SELL?.hit_rate || 0) * 100);
-            baseData.holdAccuracy = Math.round((breakdownData.HOLD?.hit_rate || 0) * 100);
+        // Also check perfResponse for additional metrics (hit time accuracy, etc.)
+        if (perfResponse.ok) {
+          const data = await perfResponse.json();
+          // Only override if breakdown didn't have data
+          if (baseData.totalPredictions === 0) {
+            const successRate = data.successRate || (data.hit_rate ? data.hit_rate * 100 : 0);
+            const totalPredictions = data.totalRecs || data.total_predictions || data.sampleSize || 0;
+            const successfulTrades = data.successfulCount || Math.round(totalPredictions * (successRate / 100));
+            const averageReturn = data.avgGain || data.aiReturn || data.average_return || 0;
 
-            // Determine best performer
-            const accuracies = { BUY: baseData.buyAccuracy, SELL: baseData.sellAccuracy, HOLD: baseData.holdAccuracy };
-            baseData.bestPerformer = Object.entries(accuracies).sort((a, b) => b[1] - a[1])[0][0];
+            if (totalPredictions > 0) {
+              baseData = {
+                ...baseData,
+                accuracy: Math.round(successRate),
+                totalPredictions,
+                successfulTrades,
+                averageReturn: Math.round(averageReturn * 10) / 10
+              };
+            }
           }
         }
 
