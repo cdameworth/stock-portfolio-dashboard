@@ -595,7 +595,7 @@ class AIPerformanceService {
         try {
             console.log(`Fetching AI performance breakdown for period ${period} from stock analytics API...`);
 
-            const apiUrl = this.stockApiUrl || 'http://api-service.railway.internal:3000';
+            const apiUrl = this.stockApiUrl || 'http://api-service.railway.internal:8080';
             const endpoint = `${apiUrl}/api/ai-performance/${period}/breakdown`;
 
             const response = await axios.get(endpoint, {
@@ -711,7 +711,7 @@ class AIPerformanceService {
         try {
             console.log(`Fetching tuning history for last ${days} days from stock analytics API...`);
 
-            const apiUrl = this.stockApiUrl || 'http://api-service.railway.internal:3000';
+            const apiUrl = this.stockApiUrl || 'http://api-service.railway.internal:8080';
             const endpoint = `${apiUrl}/api/ai-performance/tuning-history?days=${days}`;
 
             const response = await axios.get(endpoint, {
@@ -733,84 +733,86 @@ class AIPerformanceService {
             console.warn(`Stock analytics API unavailable for tuning history: ${apiError.message}`);
             console.log('Generating local tuning history...');
 
-            // Get current performance metrics for baseline
-            const currentMetrics = await this.calculatePerformanceMetrics('1M');
+            try {
+                // Get current performance metrics for baseline
+                const currentMetrics = await this.calculatePerformanceMetrics('1M');
 
-            // Generate historical data points (weekly snapshots)
-            const weeks = Math.ceil(days / 7);
-            const priceModelSteps = [];
-            const timeModelSteps = [];
+                // Generate historical data points (weekly snapshots)
+                const weeks = Math.ceil(days / 7);
+                const priceModelSteps = [];
+                const timeModelSteps = [];
 
-            for (let i = weeks - 1; i >= 0; i--) {
-                const date = new Date();
-                date.setDate(date.getDate() - (i * 7));
+                for (let i = weeks - 1; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - (i * 7));
 
-                // Simulate gradual improvement trend with some variance
-                const baseAccuracy = currentMetrics.successRate || 65;
-                const variance = (Math.random() - 0.5) * 10;
-                const weekAccuracy = Math.max(50, Math.min(90, baseAccuracy - (i * 1.5) + variance));
+                    // Simulate gradual improvement trend with some variance
+                    const baseAccuracy = currentMetrics.successRate || 65;
+                    const variance = (Math.random() - 0.5) * 10;
+                    const weekAccuracy = Math.max(50, Math.min(90, baseAccuracy - (i * 1.5) + variance));
 
-                priceModelSteps.push({
-                    date: date.toISOString().split('T')[0],
-                    accuracy: Math.round(weekAccuracy * 10) / 10,
-                    sample_size: currentMetrics.sampleSize || 0,
-                    improvement: i === 0 ? 0 : Math.round((weekAccuracy - (baseAccuracy - ((i + 1) * 1.5))) * 10) / 10
-                });
+                    priceModelSteps.push({
+                        date: date.toISOString().split('T')[0],
+                        accuracy: Math.round(weekAccuracy * 10) / 10,
+                        sample_size: currentMetrics.sampleSize || 0,
+                        improvement: i === 0 ? 0 : Math.round((weekAccuracy - (baseAccuracy - ((i + 1) * 1.5))) * 10) / 10
+                    });
 
-                // Time model with slightly different variance
-                const timeVariance = (Math.random() - 0.5) * 8;
-                const timeAccuracy = Math.max(45, Math.min(85, (baseAccuracy * 0.9) - (i * 1.2) + timeVariance));
+                    // Time model with slightly different variance
+                    const timeVariance = (Math.random() - 0.5) * 8;
+                    const timeAccuracy = Math.max(45, Math.min(85, (baseAccuracy * 0.9) - (i * 1.2) + timeVariance));
 
-                timeModelSteps.push({
-                    date: date.toISOString().split('T')[0],
-                    accuracy: Math.round(timeAccuracy * 10) / 10,
-                    sample_size: Math.floor((currentMetrics.sampleSize || 0) * 0.7),
-                    improvement: i === 0 ? 0 : Math.round((timeAccuracy - ((baseAccuracy * 0.9) - ((i + 1) * 1.2))) * 10) / 10
-                });
-            }
-
-            const history = {
-                report_type: 'tuning_history',
-                report_period: `Last ${days} days`,
-                tuning_summary: {
-                    total_tuning_sessions: weeks,
-                    price_model_sessions: weeks,
-                    time_model_sessions: weeks,
-                    latest_price_accuracy: priceModelSteps[priceModelSteps.length - 1]?.accuracy || 0,
-                    latest_time_accuracy: timeModelSteps[timeModelSteps.length - 1]?.accuracy || 0
-                },
-                recent_tuning_steps: {
-                    price_model_steps: priceModelSteps,
-                    time_model_steps: timeModelSteps
-                },
-                calculatedAt: new Date().toISOString(),
-                data_source: 'local_analysis'
-            };
-
-            // Cache for 30 minutes
-            this.analysisCache.set(cacheKey, history);
-
-            console.log(`Generated tuning history with ${weeks} weekly snapshots`);
-            return history;
-
-        } catch (error) {
-            console.error(`Error generating tuning history:`, error.message);
-
-            // Return fallback structure
-            return {
-                report_type: 'tuning_history',
-                report_period: `Last ${days} days`,
-                tuning_summary: {
-                    total_tuning_sessions: 0,
-                    price_model_sessions: 0,
-                    time_model_sessions: 0,
-                    error: error.message
-                },
-                recent_tuning_steps: {
-                    price_model_steps: [],
-                    time_model_steps: []
+                    timeModelSteps.push({
+                        date: date.toISOString().split('T')[0],
+                        accuracy: Math.round(timeAccuracy * 10) / 10,
+                        sample_size: Math.floor((currentMetrics.sampleSize || 0) * 0.7),
+                        improvement: i === 0 ? 0 : Math.round((timeAccuracy - ((baseAccuracy * 0.9) - ((i + 1) * 1.2))) * 10) / 10
+                    });
                 }
-            };
+
+                const history = {
+                    report_type: 'tuning_history',
+                    report_period: `Last ${days} days`,
+                    tuning_summary: {
+                        total_tuning_sessions: weeks,
+                        price_model_sessions: weeks,
+                        time_model_sessions: weeks,
+                        latest_price_accuracy: priceModelSteps[priceModelSteps.length - 1]?.accuracy || 0,
+                        latest_time_accuracy: timeModelSteps[timeModelSteps.length - 1]?.accuracy || 0
+                    },
+                    recent_tuning_steps: {
+                        price_model_steps: priceModelSteps,
+                        time_model_steps: timeModelSteps
+                    },
+                    calculatedAt: new Date().toISOString(),
+                    data_source: 'local_analysis'
+                };
+
+                // Cache for 30 minutes
+                this.analysisCache.set(cacheKey, history);
+
+                console.log(`Generated tuning history with ${weeks} weekly snapshots`);
+                return history;
+
+            } catch (fallbackError) {
+                console.error(`Error generating tuning history:`, fallbackError.message);
+
+                // Return fallback structure
+                return {
+                    report_type: 'tuning_history',
+                    report_period: `Last ${days} days`,
+                    tuning_summary: {
+                        total_tuning_sessions: 0,
+                        price_model_sessions: 0,
+                        time_model_sessions: 0,
+                        error: fallbackError.message
+                    },
+                    recent_tuning_steps: {
+                        price_model_steps: [],
+                        time_model_steps: []
+                    }
+                };
+            }
         }
     }
 
