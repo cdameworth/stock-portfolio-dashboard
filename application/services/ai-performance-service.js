@@ -579,8 +579,8 @@ class AIPerformanceService {
     }
 
     /**
-     * Get AI performance breakdown by recommendation type
-     * Calculates locally from analyzed recommendations
+     * Get AI performance breakdown from stock analytics API
+     * Fetches real prediction metrics from the stock analytics service
      * @param {string} period - Time period (1M, 3M, 6M, 1Y)
      */
     async getPerformanceBreakdown(period = '1M') {
@@ -593,94 +593,110 @@ class AIPerformanceService {
         }
 
         try {
-            console.log(`Calculating AI performance breakdown for period ${period}...`);
+            console.log(`Fetching AI performance breakdown for period ${period} from stock analytics API...`);
 
-            // Get analyzed outcomes
-            const outcomes = await this.analyzeAllRecommendations();
-            const filteredOutcomes = this.filterOutcomesByPeriod(outcomes, period);
+            const apiUrl = this.stockApiUrl || 'http://api-service.railway.internal:3000';
+            const endpoint = `${apiUrl}/api/ai-performance/${period}/breakdown`;
 
-            // Group outcomes by recommendation type
-            const byType = {
-                BUY: filteredOutcomes.filter(o => o.recommendation_type?.toUpperCase() === 'BUY'),
-                SELL: filteredOutcomes.filter(o => o.recommendation_type?.toUpperCase() === 'SELL'),
-                HOLD: filteredOutcomes.filter(o => o.recommendation_type?.toUpperCase() === 'HOLD')
-            };
+            const response = await axios.get(endpoint, {
+                headers: this.apiKey ? {
+                    'x-api-key': this.apiKey
+                } : {},
+                timeout: 30000
+            });
 
-            const calculateTypeMetrics = (typeOutcomes) => {
-                if (typeOutcomes.length === 0) {
-                    return { count: 0, hit_rate: 0, avg_return: 0, successes: 0 };
-                }
-                const successes = typeOutcomes.filter(o => o.is_success).length;
-                const avgReturn = typeOutcomes.reduce((sum, o) => sum + o.actual_change, 0) / typeOutcomes.length;
-                return {
-                    count: typeOutcomes.length,
-                    hit_rate: Math.round((successes / typeOutcomes.length) * 100) / 100,
-                    avg_return: Math.round(avgReturn * 10) / 10,
-                    successes
-                };
-            };
-
-            const breakdown = {
-                BUY: calculateTypeMetrics(byType.BUY),
-                SELL: calculateTypeMetrics(byType.SELL),
-                HOLD: calculateTypeMetrics(byType.HOLD)
-            };
-
-            const totalPredictions = filteredOutcomes.length;
-            const totalSuccesses = filteredOutcomes.filter(o => o.is_success).length;
-            const overallAccuracy = totalPredictions > 0 ? totalSuccesses / totalPredictions : 0;
-
-            const result = {
-                dashboard_type: 'local_analysis',
-                report_period: `Last ${period === '1M' ? 30 : period === '3M' ? 90 : period === '6M' ? 180 : 365} days`,
-                executive_summary: {
-                    price_model_accuracy: Math.round(overallAccuracy * 100) / 100,
-                    total_predictions: totalPredictions,
-                    system_status: 'healthy'
-                },
-                breakdown,
-                key_metrics: {
-                    predictions_analyzed: totalPredictions,
-                    data_source: 'yahoo_finance'
-                },
-                calculatedAt: new Date().toISOString()
-            };
+            const breakdown = response.data;
 
             // Cache for 30 minutes
-            this.analysisCache.set(cacheKey, result);
+            this.analysisCache.set(cacheKey, breakdown);
 
-            console.log(`Calculated breakdown for ${period}:`, JSON.stringify(result).substring(0, 300));
-            return result;
+            console.log(`Got breakdown for ${period}:`, JSON.stringify(breakdown).substring(0, 200));
+            return breakdown;
 
         } catch (error) {
-            console.error(`Error calculating AI performance breakdown for ${period}:`, error.message);
+            console.error(`Error fetching AI performance breakdown for ${period}:`, error.message);
 
-            // Return fallback structure
-            return {
-                dashboard_type: 'local_analysis',
-                report_period: `Last ${period === '1M' ? 30 : period === '3M' ? 90 : period === '6M' ? 180 : 365} days`,
-                executive_summary: {
-                    price_model_accuracy: 0,
-                    total_predictions: 0,
-                    system_status: 'error',
-                    error: error.message
-                },
-                breakdown: {
-                    BUY: { count: 0, hit_rate: 0, avg_return: 0 },
-                    SELL: { count: 0, hit_rate: 0, avg_return: 0 },
-                    HOLD: { count: 0, hit_rate: 0, avg_return: 0 }
-                },
-                key_metrics: {
-                    predictions_analyzed: 0
-                }
-            };
+            // Fallback to local analysis if API call fails
+            try {
+                console.log('Falling back to local analysis...');
+                const outcomes = await this.analyzeAllRecommendations();
+                const filteredOutcomes = this.filterOutcomesByPeriod(outcomes, period);
+
+                const byType = {
+                    BUY: filteredOutcomes.filter(o => o.recommendation_type?.toUpperCase() === 'BUY'),
+                    SELL: filteredOutcomes.filter(o => o.recommendation_type?.toUpperCase() === 'SELL'),
+                    HOLD: filteredOutcomes.filter(o => o.recommendation_type?.toUpperCase() === 'HOLD')
+                };
+
+                const calculateTypeMetrics = (typeOutcomes) => {
+                    if (typeOutcomes.length === 0) {
+                        return { count: 0, hit_rate: 0, avg_return: 0, successes: 0 };
+                    }
+                    const successes = typeOutcomes.filter(o => o.is_success).length;
+                    const avgReturn = typeOutcomes.reduce((sum, o) => sum + o.actual_change, 0) / typeOutcomes.length;
+                    return {
+                        count: typeOutcomes.length,
+                        hit_rate: Math.round((successes / typeOutcomes.length) * 100) / 100,
+                        avg_return: Math.round(avgReturn * 10) / 10,
+                        successes
+                    };
+                };
+
+                const breakdown = {
+                    BUY: calculateTypeMetrics(byType.BUY),
+                    SELL: calculateTypeMetrics(byType.SELL),
+                    HOLD: calculateTypeMetrics(byType.HOLD)
+                };
+
+                const totalPredictions = filteredOutcomes.length;
+                const totalSuccesses = filteredOutcomes.filter(o => o.is_success).length;
+                const overallAccuracy = totalPredictions > 0 ? totalSuccesses / totalPredictions : 0;
+
+                const result = {
+                    dashboard_type: 'local_analysis',
+                    report_period: `Last ${period === '1M' ? 30 : period === '3M' ? 90 : period === '6M' ? 180 : 365} days`,
+                    executive_summary: {
+                        price_model_accuracy: Math.round(overallAccuracy * 100) / 100,
+                        total_predictions: totalPredictions,
+                        system_status: 'healthy'
+                    },
+                    breakdown,
+                    key_metrics: {
+                        predictions_analyzed: totalPredictions,
+                        data_source: 'yahoo_finance'
+                    },
+                    calculatedAt: new Date().toISOString()
+                };
+
+                this.analysisCache.set(cacheKey, result);
+                return result;
+            } catch (fallbackError) {
+                console.error('Local analysis fallback also failed:', fallbackError.message);
+                return {
+                    dashboard_type: 'error',
+                    report_period: `Last ${period === '1M' ? 30 : period === '3M' ? 90 : period === '6M' ? 180 : 365} days`,
+                    executive_summary: {
+                        price_model_accuracy: 0,
+                        total_predictions: 0,
+                        system_status: 'error',
+                        error: error.message
+                    },
+                    breakdown: {
+                        BUY: { count: 0, hit_rate: 0, avg_return: 0 },
+                        SELL: { count: 0, hit_rate: 0, avg_return: 0 },
+                        HOLD: { count: 0, hit_rate: 0, avg_return: 0 }
+                    },
+                    key_metrics: {
+                        predictions_analyzed: 0
+                    }
+                };
+            }
         }
     }
 
     /**
-     * Get tuning history - returns local model performance history
-     * Since we don't have an external tuning service, this generates synthetic history
-     * based on our local performance metrics over time
+     * Get tuning history from stock analytics API
+     * Falls back to local synthetic history if API is unavailable
      * @param {number} days - Number of days of history to return
      */
     async getTuningHistory(days = 30) {
@@ -693,7 +709,29 @@ class AIPerformanceService {
         }
 
         try {
-            console.log(`Generating tuning history for last ${days} days...`);
+            console.log(`Fetching tuning history for last ${days} days from stock analytics API...`);
+
+            const apiUrl = this.stockApiUrl || 'http://api-service.railway.internal:3000';
+            const endpoint = `${apiUrl}/api/ai-performance/tuning-history?days=${days}`;
+
+            const response = await axios.get(endpoint, {
+                headers: this.apiKey ? {
+                    'x-api-key': this.apiKey
+                } : {},
+                timeout: 30000
+            });
+
+            const history = response.data;
+
+            // Cache for 30 minutes
+            this.analysisCache.set(cacheKey, history);
+
+            console.log(`Got tuning history:`, JSON.stringify(history).substring(0, 200));
+            return history;
+
+        } catch (apiError) {
+            console.warn(`Stock analytics API unavailable for tuning history: ${apiError.message}`);
+            console.log('Generating local tuning history...');
 
             // Get current performance metrics for baseline
             const currentMetrics = await this.calculatePerformanceMetrics('1M');
