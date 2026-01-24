@@ -420,7 +420,7 @@ function Dashboard() {
                     fontWeight="bold"
                     sx={{ fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' } }}
                   >
-                    {aiPerformance.totalPredictions}
+                    {aiPerformance.totalPredictions.toLocaleString()}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -439,7 +439,7 @@ function Dashboard() {
                     fontWeight="bold"
                     sx={{ fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' } }}
                   >
-                    {aiPerformance.successfulTrades}
+                    {aiPerformance.successfulTrades.toLocaleString()}
                   </Typography>
                   <Typography
                     variant="body2"
@@ -487,21 +487,21 @@ function Dashboard() {
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', justifyContent: { xs: 'center', sm: 'flex-start' } }}>
                 <Chip
                   label={`BUY: ${aiPerformance.buyAccuracy}%`}
-                  color={aiPerformance.bestPerformer === 'BUY' ? 'success' : 'default'}
+                  color={aiPerformance.bestPerformer === 'BUY' ? 'success' : 'success'}
                   variant={aiPerformance.bestPerformer === 'BUY' ? 'filled' : 'outlined'}
                   size="small"
                   sx={{ fontWeight: aiPerformance.bestPerformer === 'BUY' ? 'bold' : 'normal' }}
                 />
                 <Chip
                   label={`SELL: ${aiPerformance.sellAccuracy}%`}
-                  color={aiPerformance.bestPerformer === 'SELL' ? 'error' : 'default'}
+                  color={aiPerformance.bestPerformer === 'SELL' ? 'error' : 'error'}
                   variant={aiPerformance.bestPerformer === 'SELL' ? 'filled' : 'outlined'}
                   size="small"
                   sx={{ fontWeight: aiPerformance.bestPerformer === 'SELL' ? 'bold' : 'normal' }}
                 />
                 <Chip
                   label={`HOLD: ${aiPerformance.holdAccuracy}%`}
-                  color={aiPerformance.bestPerformer === 'HOLD' ? 'info' : 'default'}
+                  color={aiPerformance.bestPerformer === 'HOLD' ? 'info' : 'info'}
                   variant={aiPerformance.bestPerformer === 'HOLD' ? 'filled' : 'outlined'}
                   size="small"
                   sx={{ fontWeight: aiPerformance.bestPerformer === 'HOLD' ? 'bold' : 'normal' }}

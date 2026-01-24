@@ -113,7 +113,7 @@ function StatusIndicator({ status }) {
       label={label}
       color={color}
       size="small"
-      variant="outlined"
+      variant="filled"
     />
   );
 }
