@@ -84,18 +84,10 @@ async function runMigrations() {
       try {
         // Execute migration in a transaction
         await pool.query('BEGIN');
-        
-        // Split by semicolon and execute each statement
-        const statements = migrationSQL
-          .split(';')
-          .map(stmt => stmt.trim())
-          .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
 
-        for (const statement of statements) {
-          if (statement.trim()) {
-            await pool.query(statement);
-          }
-        }
+        // Execute the entire migration as a single statement
+        // This properly handles complex SQL with DO blocks, JSON, etc.
+        await pool.query(migrationSQL);
 
         // Record successful migration
         await pool.query(
