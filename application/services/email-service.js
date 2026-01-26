@@ -90,9 +90,23 @@ class EmailService {
     }
   }
   
+  async sendVerificationEmail(email, verificationToken, userName = '') {
+    const verifyUrl = `${this.baseUrl}/api/auth/verify-email?token=${verificationToken}`;
+
+    const mailOptions = {
+      from: this.fromEmail,
+      to: email,
+      subject: 'Verify Your Email - Stock Portfolio Dashboard',
+      html: this.generateVerificationHTML(verifyUrl, userName),
+      text: this.generateVerificationText(verifyUrl, userName)
+    };
+
+    return this.sendEmail(mailOptions);
+  }
+
   async sendPasswordResetEmail(email, resetToken, userName = '') {
     const resetUrl = `${this.baseUrl}/reset-password?token=${resetToken}`;
-    
+
     const mailOptions = {
       from: this.fromEmail,
       to: email,
@@ -100,7 +114,7 @@ class EmailService {
       html: this.generatePasswordResetHTML(resetUrl, userName),
       text: this.generatePasswordResetText(resetUrl, userName)
     };
-    
+
     return this.sendEmail(mailOptions);
   }
   
@@ -153,6 +167,67 @@ class EmailService {
     }
   }
   
+  generateVerificationHTML(verifyUrl, userName) {
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Your Email</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: #2c3e50; color: white; padding: 20px; text-align: center; }
+        .content { padding: 30px 20px; background: #f8f9fa; }
+        .button { display: inline-block; padding: 12px 30px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Stock Portfolio Dashboard</h1>
+        </div>
+        <div class="content">
+            <h2>Welcome! Please Verify Your Email</h2>
+            ${userName ? `<p>Hi ${userName},</p>` : '<p>Hello,</p>'}
+            <p>Thank you for registering for Stock Portfolio Dashboard. Please verify your email address to complete your registration and access your account.</p>
+            <p style="text-align: center;">
+                <a href="${verifyUrl}" class="button">Verify Email Address</a>
+            </p>
+            <p>Or copy and paste this link into your browser:</p>
+            <p style="word-break: break-all; background: #e9ecef; padding: 10px; border-radius: 3px;">
+                ${verifyUrl}
+            </p>
+            <p style="color: #666; font-size: 14px; margin-top: 20px;">
+                If you didn't create an account with us, please ignore this email.
+            </p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2025 Stock Portfolio Dashboard. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+  }
+
+  generateVerificationText(verifyUrl, userName) {
+    return `
+Stock Portfolio Dashboard - Verify Your Email
+
+${userName ? `Hi ${userName},` : 'Hello,'}
+
+Thank you for registering for Stock Portfolio Dashboard. Please verify your email address to complete your registration.
+
+Click the link below to verify your email:
+${verifyUrl}
+
+If you didn't create an account with us, please ignore this email.
+
+© 2025 Stock Portfolio Dashboard. All rights reserved.`;
+  }
+
   generatePasswordResetHTML(resetUrl, userName) {
     return `
 <!DOCTYPE html>

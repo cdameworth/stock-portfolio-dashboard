@@ -455,16 +455,64 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await authService.registerUser({ email, password });
-    const token = authService.generateToken({
+
+    // Send verification email
+    try {
+      await authService.sendVerificationEmail(user.email, user.verification_token);
+    } catch (emailError) {
+      logger.warn('Failed to send verification email:', emailError);
+      // Continue with registration even if email fails
+    }
+
+    metricsService.incrementCounter('user_registrations_total');
+
+    // Return success but require email verification before login
+    res.status(201).json({
+      message: 'Registration successful. Please check your email to verify your account.',
+      requiresVerification: true,
+      email: user.email
+    });
+  } catch (error) {
+    logger.error('Registration error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Verify email
+app.get('/api/auth/verify-email', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).json({ error: 'Verification token required' });
+    }
+
+    const user = await authService.verifyEmail(token);
+
+    // Generate auth token for verified user
+    const authToken = authService.generateToken({
       userId: user.id,
       email: user.email,
       plan: user.plan
     });
 
-    metricsService.incrementCounter('user_registrations_total');
-    res.status(201).json({ user, token });
+    // Redirect to app with token (or return JSON for API clients)
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    res.redirect(`${appUrl}?verified=true&token=${authToken}`);
   } catch (error) {
-    logger.error('Registration error:', error);
+    logger.error('Email verification error:', error);
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    res.redirect(`${appUrl}?verified=false&error=${encodeURIComponent(error.message)}`);
+  }
+});
+
+// Resend verification email
+app.post('/api/auth/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    await authService.resendVerificationEmail(email);
+    res.json({ message: 'Verification email sent' });
+  } catch (error) {
+    logger.error('Resend verification error:', error);
     res.status(400).json({ error: error.message });
   }
 });
@@ -474,7 +522,16 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const result = await authService.loginUser({ email, password });
-    
+
+    // Check if email is verified
+    if (!result.user.verified) {
+      return res.status(403).json({
+        error: 'Please verify your email before logging in',
+        code: 'EMAIL_NOT_VERIFIED',
+        email: result.user.email
+      });
+    }
+
     metricsService.incrementCounter('user_logins_total');
     res.json(result);
   } catch (error) {

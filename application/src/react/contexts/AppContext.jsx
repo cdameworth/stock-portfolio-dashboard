@@ -384,4 +384,61 @@ export function useTheme() {
   };
 }
 
+// Plan limits configuration
+const PLAN_LIMITS = {
+  free: {
+    portfolios: 1,
+    stocksPerPortfolio: 10,
+    recommendationsPerDay: 5,
+    realTimeData: false,
+    alerts: false,
+    export: false,
+    aiInsights: false
+  },
+  pro: {
+    portfolios: Infinity,
+    stocksPerPortfolio: Infinity,
+    recommendationsPerDay: Infinity,
+    realTimeData: true,
+    alerts: true,
+    export: true,
+    aiInsights: false
+  },
+  premium: {
+    portfolios: Infinity,
+    stocksPerPortfolio: Infinity,
+    recommendationsPerDay: Infinity,
+    realTimeData: true,
+    alerts: true,
+    export: true,
+    aiInsights: true,
+    prioritySupport: true
+  }
+};
+
+// Hook to check plan-based feature access
+export function usePlanLimits() {
+  const { state } = useApp();
+  const plan = state.user?.plan || 'free';
+  const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+
+  return {
+    plan,
+    limits,
+    canAccess: (feature) => {
+      const featureLimits = {
+        realTimeData: limits.realTimeData,
+        alerts: limits.alerts,
+        export: limits.export,
+        aiInsights: limits.aiInsights,
+        prioritySupport: limits.prioritySupport || false
+      };
+      return featureLimits[feature] === true;
+    },
+    isPro: plan === 'pro' || plan === 'premium',
+    isPremium: plan === 'premium',
+    isFree: plan === 'free'
+  };
+}
+
 export default AppContext;

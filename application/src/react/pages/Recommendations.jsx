@@ -44,9 +44,12 @@ import {
   Warning,
   AccessTime,
   Speed,
-  TrendingFlat
+  TrendingFlat,
+  Lock
 } from '@mui/icons-material';
 import { stockApi } from '../utils/api.js';
+import { usePlanLimits } from '../contexts/AppContext.jsx';
+import UpgradePrompt from '../components/UpgradePrompt.jsx';
 
 function RecommendationCard({ recommendation, onViewHistory }) {
   // Helper function to safely format prices
@@ -335,6 +338,7 @@ const isValidRecommendation = (recommendation) => {
 };
 
 function Recommendations() {
+  const { canAccess, isPremium, isFree } = usePlanLimits();
   const [recommendations, setRecommendations] = useState([]);
   const [filteredRecommendations, setFilteredRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -351,6 +355,9 @@ function Recommendations() {
   const [minConfidence, setMinConfidence] = useState(0);
   const [searchSymbol, setSearchSymbol] = useState('');
   const [showExpired, setShowExpired] = useState(false);
+
+  // Check if user has access to AI insights
+  const hasAIInsightsAccess = canAccess('aiInsights');
 
   useEffect(() => {
     fetchRecommendations();
@@ -549,13 +556,34 @@ function Recommendations() {
           <Typography variant="h6">
             AI-Powered Investment Analysis
           </Typography>
+          {isFree && (
+            <Chip
+              icon={<Lock />}
+              label="Premium Feature"
+              color="secondary"
+              size="small"
+              sx={{ ml: 2 }}
+            />
+          )}
         </Box>
         <Typography variant="body2" color="text.secondary">
-          Our sophisticated AI algorithms analyze market trends, financial data, and macroeconomic indicators 
+          Our sophisticated AI algorithms analyze market trends, financial data, and macroeconomic indicators
           to provide personalized investment recommendations tailored to your portfolio strategy.
         </Typography>
       </Paper>
 
+      {/* Show upgrade prompt for free users */}
+      {isFree && (
+        <Box sx={{ mb: 3 }}>
+          <UpgradePrompt
+            feature="Advanced AI Insights"
+            requiredPlan="premium"
+            showFeatures={true}
+          />
+        </Box>
+      )}
+
+      {/* Show limited preview for free users, full content for paid users */}
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <CircularProgress size={60} />
@@ -722,13 +750,33 @@ function Recommendations() {
 
           {/* Recommendations Grid */}
           {filteredRecommendations.length > 0 ? (
-            <Grid container spacing={3}>
-              {filteredRecommendations.map((rec) => (
-                <Grid item xs={12} md={6} lg={4} key={rec.symbol || rec.recommendation_id || Math.random()}>
-                  <RecommendationCard recommendation={rec} onViewHistory={handleViewHistory} />
-                </Grid>
-              ))}
-            </Grid>
+            <>
+              <Grid container spacing={3}>
+                {/* Free users only see first 3 recommendations as preview */}
+                {(isFree ? filteredRecommendations.slice(0, 3) : filteredRecommendations).map((rec) => (
+                  <Grid item xs={12} md={6} lg={4} key={rec.symbol || rec.recommendation_id || Math.random()}>
+                    <RecommendationCard recommendation={rec} onViewHistory={handleViewHistory} />
+                  </Grid>
+                ))}
+              </Grid>
+
+              {/* Show upgrade prompt if free user has more recommendations */}
+              {isFree && filteredRecommendations.length > 3 && (
+                <Box sx={{ mt: 3 }}>
+                  <Alert
+                    severity="info"
+                    icon={<Lock />}
+                    action={
+                      <Button color="inherit" size="small" onClick={() => window.location.href = '#pricing'}>
+                        Upgrade
+                      </Button>
+                    }
+                  >
+                    You're viewing 3 of {filteredRecommendations.length} recommendations. Upgrade to Premium to unlock all AI insights.
+                  </Alert>
+                </Box>
+              )}
+            </>
           ) : (
             <Paper sx={{ p: 4, textAlign: 'center' }}>
               <FilterList sx={{ fontSize: 60, color: 'text.secondary', mb: 2 }} />

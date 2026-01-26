@@ -38,6 +38,7 @@ const forgotPasswordSchema = yup.object({
 function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
   const getSchema = () => {
     switch (type) {
@@ -68,8 +69,9 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
   const handleClose = () => {
     reset();
     setError('');
+    setSuccessMessage('');
     setLoading(false);
-    
+
     // Proper focus management to prevent aria-hidden issues
     // Move focus to body element before dialog closes
     setTimeout(() => {
@@ -81,18 +83,19 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
         document.activeElement.blur();
       }
     }, 0);
-    
+
     onClose();
   };
 
   const onSubmit = async (data) => {
     setLoading(true);
     setError('');
+    setSuccessMessage('');
 
     try {
-      const endpoint = type === 'register' ? '/api/auth/register' : 
+      const endpoint = type === 'register' ? '/api/auth/register' :
                       type === 'forgot' ? '/api/auth/forgot-password' : '/api/auth/login';
-      
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
@@ -102,18 +105,20 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
       });
 
       const result = await response.json();
-      console.log('Login response:', result);
+      console.log('Auth response:', result);
 
       if (response.ok) {
         if (type === 'forgot') {
-          setError('');
-          alert('Password reset email sent successfully');
-          handleClose();
+          setSuccessMessage('Password reset email sent. Please check your inbox.');
+        } else if (type === 'register') {
+          // Registration now requires email verification
+          setSuccessMessage(result.message || 'Registration successful! Please check your email to verify your account.');
         } else {
+          // Login success
           console.log('User from login:', result.user);
           localStorage.setItem('authToken', result.token);
           localStorage.setItem('user', JSON.stringify(result.user || { email: data.email }));
-          
+
           // Proper focus management before dialog closes
           setTimeout(() => {
             if (document.body && document.body.focus) {
@@ -123,9 +128,11 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
               document.activeElement.blur();
             }
           }, 0);
-          
+
           onSuccess();
         }
+      } else if (response.status === 403 && result.code === 'EMAIL_NOT_VERIFIED') {
+        setError('Please verify your email before logging in. Check your inbox for the verification link.');
       } else {
         setError(result.error || 'Authentication failed');
       }
@@ -162,6 +169,13 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
             </Alert>
           )}
 
+          {successMessage && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              {successMessage}
+            </Alert>
+          )}
+
+          {!successMessage && (
           <TextField
             {...register('email')}
             label="Email Address"
@@ -238,6 +252,7 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
               </Typography>
             )}
           </Box>
+          )}
         </DialogContent>
 
         <DialogActions sx={{ px: 3, pb: 3 }}>
@@ -247,18 +262,20 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
             variant="text"
             color="inherit"
           >
-            Cancel
+            {successMessage ? 'Close' : 'Cancel'}
           </Button>
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={loading}
-            {...(loading && { startIcon: <CircularProgress size={20} /> })}
-          >
-            {loading ? 'Processing...' : 
-             type === 'register' ? 'Apply' :
-             type === 'forgot' ? 'Send Reset Email' : 'Sign In'}
-          </Button>
+          {!successMessage && (
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={loading}
+              {...(loading && { startIcon: <CircularProgress size={20} /> })}
+            >
+              {loading ? 'Processing...' :
+               type === 'register' ? 'Apply' :
+               type === 'forgot' ? 'Send Reset Email' : 'Sign In'}
+            </Button>
+          )}
         </DialogActions>
       </form>
     </Dialog>
