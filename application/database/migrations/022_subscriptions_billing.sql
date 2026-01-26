@@ -8,7 +8,7 @@
 
 CREATE TABLE IF NOT EXISTS subscriptions (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     stripe_customer_id VARCHAR(255) UNIQUE,
     stripe_subscription_id VARCHAR(255) UNIQUE,
     plan VARCHAR(50) NOT NULL DEFAULT 'free',
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS subscriptions (
 
 CREATE TABLE IF NOT EXISTS billing_history (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     subscription_id INTEGER REFERENCES subscriptions(id) ON DELETE SET NULL,
     stripe_invoice_id VARCHAR(255) UNIQUE,
     stripe_payment_intent_id VARCHAR(255),
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS billing_history (
 
 CREATE TABLE IF NOT EXISTS subscription_events (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     subscription_id INTEGER REFERENCES subscriptions(id) ON DELETE SET NULL,
     stripe_event_id VARCHAR(255) UNIQUE NOT NULL,
     event_type VARCHAR(100) NOT NULL,
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS promo_codes (
 CREATE TABLE IF NOT EXISTS promo_redemptions (
     id SERIAL PRIMARY KEY,
     promo_code_id INTEGER NOT NULL REFERENCES promo_codes(id) ON DELETE CASCADE,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     subscription_id INTEGER REFERENCES subscriptions(id) ON DELETE SET NULL,
     redeemed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(promo_code_id, user_id)
