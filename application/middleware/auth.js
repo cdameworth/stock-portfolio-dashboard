@@ -124,7 +124,7 @@ const checkPlanLimits = (feature) => {
           
         case 'export':
           if (!limits.export) {
-            return res.status(402).json({ 
+            return res.status(402).json({
               error: 'Export feature requires Pro plan or higher',
               code: 'PLAN_UPGRADE_REQUIRED',
               feature: 'export',
@@ -132,7 +132,29 @@ const checkPlanLimits = (feature) => {
             });
           }
           break;
-          
+
+        case 'ai_insights':
+          if (!limits.aiInsights) {
+            return res.status(402).json({
+              error: 'Advanced AI insights require Premium plan',
+              code: 'PLAN_UPGRADE_REQUIRED',
+              feature: 'ai_insights',
+              currentPlan: req.user.plan
+            });
+          }
+          break;
+
+        case 'alerts':
+          if (!limits.alerts) {
+            return res.status(402).json({
+              error: 'Price alerts require Pro plan or higher',
+              code: 'PLAN_UPGRADE_REQUIRED',
+              feature: 'alerts',
+              currentPlan: req.user.plan
+            });
+          }
+          break;
+
         default:
           break;
       }

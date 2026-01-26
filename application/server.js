@@ -42,6 +42,8 @@ const AdminService = require('./services/admin-service');
 const { businessMetrics } = require('./business-metrics');
 // Import admin middleware
 const { adminMiddleware } = require('./middleware/admin');
+// Import auth middleware functions for plan-based feature gating
+const { checkPlanLimits, optionalAuth, setAuthService } = require('./middleware/auth');
 
 // Import browser telemetry middleware
 const {
@@ -102,6 +104,9 @@ const authService = new AuthService({
     password: process.env.DB_PASSWORD
   }
 });
+
+// Initialize auth service in middleware for plan-based feature gating
+setAuthService(authService);
 
 const aiPerformanceService = new AIPerformanceService({
   stockApiUrl: process.env.STOCK_ANALYTICS_API_URL,
@@ -205,6 +210,24 @@ const limiter = rateLimit({
   legacyHeaders: false
 });
 app.use(limiter);
+
+// Stripe webhook route - MUST be before express.json() to get raw body
+// This route needs raw body for signature verification
+app.post('/api/webhooks/stripe',
+  express.raw({ type: 'application/json' }),
+  async (req, res) => {
+    const stripeService = require('./services/stripe-service');
+    const signature = req.headers['stripe-signature'];
+
+    try {
+      const result = await stripeService.handleWebhook(req.body, signature);
+      res.json(result.data || { received: true });
+    } catch (error) {
+      logger.error('Stripe webhook error:', error);
+      res.status(400).json({ error: error.message });
+    }
+  }
+);
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -432,16 +455,64 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await authService.registerUser({ email, password });
-    const token = authService.generateToken({
+
+    // Send verification email
+    try {
+      await authService.sendVerificationEmail(user.email, user.verification_token);
+    } catch (emailError) {
+      logger.warn('Failed to send verification email:', emailError);
+      // Continue with registration even if email fails
+    }
+
+    metricsService.incrementCounter('user_registrations_total');
+
+    // Return success but require email verification before login
+    res.status(201).json({
+      message: 'Registration successful. Please check your email to verify your account.',
+      requiresVerification: true,
+      email: user.email
+    });
+  } catch (error) {
+    logger.error('Registration error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Verify email
+app.get('/api/auth/verify-email', async (req, res) => {
+  try {
+    const { token } = req.query;
+    if (!token) {
+      return res.status(400).json({ error: 'Verification token required' });
+    }
+
+    const user = await authService.verifyEmail(token);
+
+    // Generate auth token for verified user
+    const authToken = authService.generateToken({
       userId: user.id,
       email: user.email,
       plan: user.plan
     });
 
-    metricsService.incrementCounter('user_registrations_total');
-    res.status(201).json({ user, token });
+    // Redirect to app with token (or return JSON for API clients)
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    res.redirect(`${appUrl}?verified=true&token=${authToken}`);
   } catch (error) {
-    logger.error('Registration error:', error);
+    logger.error('Email verification error:', error);
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
+    res.redirect(`${appUrl}?verified=false&error=${encodeURIComponent(error.message)}`);
+  }
+});
+
+// Resend verification email
+app.post('/api/auth/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+    await authService.resendVerificationEmail(email);
+    res.json({ message: 'Verification email sent' });
+  } catch (error) {
+    logger.error('Resend verification error:', error);
     res.status(400).json({ error: error.message });
   }
 });
@@ -451,7 +522,16 @@ app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
     const result = await authService.loginUser({ email, password });
-    
+
+    // Check if email is verified
+    if (!result.user.verified) {
+      return res.status(403).json({
+        error: 'Please verify your email before logging in',
+        code: 'EMAIL_NOT_VERIFIED',
+        email: result.user.email
+      });
+    }
+
     metricsService.incrementCounter('user_logins_total');
     res.json(result);
   } catch (error) {
@@ -1247,8 +1327,8 @@ app.get('/api/ai-performance/:period/hit-accuracy', async (req, res) => {
   }
 });
 
-// Get detailed AI performance breakdown by recommendation type
-app.get('/api/ai-performance/:period/breakdown', async (req, res) => {
+// Get detailed AI performance breakdown by recommendation type (Premium feature)
+app.get('/api/ai-performance/:period/breakdown', authMiddleware, checkPlanLimits('ai_insights'), async (req, res) => {
   try {
     const { period } = req.params;
     
@@ -1521,6 +1601,154 @@ app.get('/api/admin/check', authMiddleware, (req, res) => {
   const isAdmin = req.user.isAdmin || req.user.is_admin || req.user.role === 'admin' ||
                   req.user.email?.endsWith('@stockportfolio.com');
   res.json({ isAdmin, userId: req.user.userId });
+});
+
+// ===========================================
+// BILLING & SUBSCRIPTION ROUTES
+// ===========================================
+
+const stripeService = require('./services/stripe-service');
+
+// Get subscription plans
+app.get('/api/billing/plans', (req, res) => {
+  try {
+    const plans = stripeService.getPlans();
+    res.json({ plans });
+  } catch (error) {
+    logger.error('Error getting plans:', error);
+    res.status(500).json({ error: 'Failed to get plans' });
+  }
+});
+
+// Get current user's subscription
+app.get('/api/billing/subscription', authMiddleware, async (req, res) => {
+  try {
+    const result = await stripeService.getSubscription(req.user.userId);
+    if (!result.success) {
+      return res.status(500).json({ error: result.error?.message || 'Failed to get subscription' });
+    }
+    res.json(result.data);
+  } catch (error) {
+    logger.error('Error getting subscription:', error);
+    res.status(500).json({ error: 'Failed to get subscription' });
+  }
+});
+
+// Get billing history
+app.get('/api/billing/history', authMiddleware, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+    const result = await stripeService.getBillingHistory(req.user.userId, limit);
+    if (!result.success) {
+      return res.status(500).json({ error: result.error?.message || 'Failed to get billing history' });
+    }
+    res.json({ history: result.data });
+  } catch (error) {
+    logger.error('Error getting billing history:', error);
+    res.status(500).json({ error: 'Failed to get billing history' });
+  }
+});
+
+// Create checkout session for subscription upgrade
+app.post('/api/billing/checkout', authMiddleware, async (req, res) => {
+  try {
+    const { plan, billingPeriod = 'monthly' } = req.body;
+
+    if (!plan || !['pro', 'premium'].includes(plan)) {
+      return res.status(400).json({ error: 'Invalid plan' });
+    }
+
+    const user = await authService.getUserById(req.user.userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const result = await stripeService.createCheckoutSession(
+      req.user.userId,
+      user.email,
+      plan,
+      billingPeriod
+    );
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error?.message || 'Failed to create checkout session' });
+    }
+
+    res.json(result.data);
+  } catch (error) {
+    logger.error('Error creating checkout session:', error);
+    res.status(500).json({ error: 'Failed to create checkout session' });
+  }
+});
+
+// Create billing portal session for managing subscription
+app.post('/api/billing/portal', authMiddleware, async (req, res) => {
+  try {
+    const result = await stripeService.createBillingPortalSession(req.user.userId);
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error?.message || 'Failed to create portal session' });
+    }
+
+    res.json(result.data);
+  } catch (error) {
+    logger.error('Error creating portal session:', error);
+    res.status(500).json({ error: 'Failed to create billing portal session' });
+  }
+});
+
+// Cancel subscription (at period end)
+app.post('/api/billing/cancel', authMiddleware, async (req, res) => {
+  try {
+    const result = await stripeService.cancelSubscription(req.user.userId);
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error?.message || 'Failed to cancel subscription' });
+    }
+
+    res.json(result.data);
+  } catch (error) {
+    logger.error('Error canceling subscription:', error);
+    res.status(500).json({ error: 'Failed to cancel subscription' });
+  }
+});
+
+// Reactivate subscription scheduled for cancellation
+app.post('/api/billing/reactivate', authMiddleware, async (req, res) => {
+  try {
+    const result = await stripeService.reactivateSubscription(req.user.userId);
+
+    if (!result.success) {
+      return res.status(500).json({ error: result.error?.message || 'Failed to reactivate subscription' });
+    }
+
+    res.json(result.data);
+  } catch (error) {
+    logger.error('Error reactivating subscription:', error);
+    res.status(500).json({ error: 'Failed to reactivate subscription' });
+  }
+});
+
+// Apply promo code
+app.post('/api/billing/promo', authMiddleware, async (req, res) => {
+  try {
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(400).json({ error: 'Promo code required' });
+    }
+
+    const result = await stripeService.applyPromoCode(req.user.userId, code);
+
+    if (!result.success) {
+      return res.status(400).json({ error: result.error?.message || 'Invalid promo code' });
+    }
+
+    res.json(result.data);
+  } catch (error) {
+    logger.error('Error applying promo code:', error);
+    res.status(400).json({ error: error.message || 'Invalid promo code' });
+  }
 });
 
 // 404 handler

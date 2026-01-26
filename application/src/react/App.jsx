@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Container, Box, AppBar, Toolbar, Typography, Button, IconButton, Menu, MenuItem, Dialog, DialogTitle, DialogContent, DialogActions, Switch, FormControlLabel, Divider } from '@mui/material';
-import { AccountCircle, Dashboard, TrendingUp, Settings, Logout, AdminPanelSettings } from '@mui/icons-material';
+import { AccountCircle, Dashboard, TrendingUp, Settings, Logout, AdminPanelSettings, CreditCard } from '@mui/icons-material';
 import { AppProvider, useAuth, useNavigation, useTheme, useApp } from './contexts/AppContext.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import { LoadingSpinner, PageLoadingOverlay } from './components/LoadingState.jsx';
@@ -9,6 +9,7 @@ import DashboardPage from './pages/Dashboard.jsx';
 import Portfolio from './pages/Portfolio.jsx';
 import Recommendations from './pages/Recommendations.jsx';
 import Admin from './pages/Admin.jsx';
+import Pricing from './pages/Pricing.jsx';
 import { useAuthTracing, usePerformanceTracing } from './utils/useTracing.js';
 import { browserTracer } from './services/browser-tracing.js';
 
@@ -184,6 +185,12 @@ function AppContent() {
             <Recommendations />
           </ErrorBoundary>
         );
+      case 'pricing':
+        return (
+          <ErrorBoundary>
+            <Pricing />
+          </ErrorBoundary>
+        );
       case 'admin':
         // Admin page - protected route for admin users only
         if (isAdminUser(user)) {
@@ -288,6 +295,10 @@ function AppContent() {
                 open={Boolean(anchorEl)}
                 onClose={handleMenuClose}
               >
+                <MenuItem onClick={() => { setCurrentPage('pricing'); handleMenuClose(); }}>
+                  <CreditCard sx={{ mr: 1 }} />
+                  Upgrade Plan
+                </MenuItem>
                 <MenuItem onClick={handleSettingsClick}>
                   <Settings sx={{ mr: 1 }} />
                   Settings

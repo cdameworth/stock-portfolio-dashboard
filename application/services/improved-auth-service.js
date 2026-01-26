@@ -10,13 +10,15 @@ const branca = require('branca');
 const { v4: uuidv4 } = require('uuid');
 const crypto = require('crypto');
 const BaseService = require('./base-service');
+const EmailService = require('./email-service');
 
 class ImprovedAuthService extends BaseService {
   constructor({ dbConfig } = {}) {
     super('auth-service', { dbConfig });
-    
+
     this.inMemory = { users: {} };
     this.brancaSecret = process.env.BRANCA_SECRET;
+    this.emailService = new EmailService();
     if (!this.brancaSecret) {
       throw new Error('BRANCA_SECRET environment variable is required for authentication');
     }
@@ -292,6 +294,142 @@ class ImprovedAuthService extends BaseService {
    */
   async verifyPassword(password, hash) {
     return await bcrypt.compare(password, hash);
+  }
+
+  /**
+   * Send verification email
+   */
+  async sendVerificationEmail(email, verificationToken) {
+    return this.emailService.sendVerificationEmail(email, verificationToken);
+  }
+
+  /**
+   * Verify user email with token
+   */
+  async verifyEmail(token) {
+    return this.executeOperation(async () => {
+      await this.init();
+
+      if (!this.pool) {
+        // In-memory storage
+        const user = Object.values(this.inMemory.users).find(u => u.verification_token === token);
+        if (!user) {
+          throw new Error('Invalid or expired verification token');
+        }
+        user.verified = true;
+        user.verification_token = null;
+        return { id: user.id, email: user.email, plan: user.plan, verified: true };
+      }
+
+      const result = await this.executeQuery(
+        `UPDATE users
+         SET verified = true, verification_token = NULL, updated_at = now()
+         WHERE verification_token = $1
+         RETURNING id, email, plan, verified, is_admin`,
+        [token],
+        'verifyEmail'
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error('Invalid or expired verification token');
+      }
+
+      return result.rows[0];
+    }, 'verifyEmail');
+  }
+
+  /**
+   * Resend verification email
+   */
+  async resendVerificationEmail(email) {
+    return this.executeOperation(async () => {
+      await this.init();
+      const normalizedEmail = email.toLowerCase().trim();
+
+      const user = await this.getUserByEmail(normalizedEmail);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      if (user.verified) {
+        throw new Error('Email is already verified');
+      }
+
+      // Generate new verification token
+      const newToken = require('uuid').v4();
+
+      if (!this.pool) {
+        user.verification_token = newToken;
+      } else {
+        await this.executeQuery(
+          'UPDATE users SET verification_token = $1, updated_at = now() WHERE email = $2',
+          [newToken, normalizedEmail],
+          'resendVerification'
+        );
+      }
+
+      await this.emailService.sendVerificationEmail(normalizedEmail, newToken);
+      return { message: 'Verification email sent' };
+    }, 'resendVerificationEmail', { email });
+  }
+
+  /**
+   * Get user by ID
+   */
+  async getUserById(userId) {
+    return this.executeOperation(async () => {
+      await this.init();
+
+      if (!this.pool) {
+        return Object.values(this.inMemory.users).find(u => u.id === userId) || null;
+      }
+
+      const result = await this.executeQuery(
+        'SELECT id, email, plan, verified, is_admin, created_at FROM users WHERE id = $1',
+        [userId],
+        'getUserById'
+      );
+
+      return result.rows[0] || null;
+    }, 'getUserById', { userId });
+  }
+
+  /**
+   * Get plan limits for a given plan
+   */
+  getPlanLimits(plan) {
+    const limits = {
+      free: {
+        portfolios: 1,
+        stocksPerPortfolio: 10,
+        recommendationsPerDay: 5,
+        realTimeData: false,
+        alerts: false,
+        export: false,
+        aiInsights: false
+      },
+      pro: {
+        portfolios: Infinity,
+        stocksPerPortfolio: Infinity,
+        recommendationsPerDay: Infinity,
+        realTimeData: true,
+        alerts: true,
+        export: true,
+        aiInsights: false
+      },
+      premium: {
+        portfolios: Infinity,
+        stocksPerPortfolio: Infinity,
+        recommendationsPerDay: Infinity,
+        realTimeData: true,
+        alerts: true,
+        export: true,
+        aiInsights: true,
+        prioritySupport: true
+      }
+    };
+
+    return limits[plan] || limits.free;
   }
 
   /**
