@@ -176,6 +176,7 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
           )}
 
           {!successMessage && (
+          <>
           <TextField
             {...register('email')}
             label="Email Address"
@@ -252,6 +253,7 @@ function AuthDialog({ open, type, onClose, onSuccess, onSwitchType }) {
               </Typography>
             )}
           </Box>
+          </>
           )}
         </DialogContent>
 
