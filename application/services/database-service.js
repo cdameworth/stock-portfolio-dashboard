@@ -84,11 +84,21 @@ class DatabaseService {
           stop_loss_price, risk_level, rationale, estimated_hit_days,
           estimated_hit_date, source, metadata
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-        ON CONFLICT (recommendation_id) 
+        ON CONFLICT (symbol)
         DO UPDATE SET
           updated_at = CURRENT_TIMESTAMP,
+          recommendation_id = EXCLUDED.recommendation_id,
+          recommendation_type = EXCLUDED.recommendation_type,
+          prediction_score = EXCLUDED.prediction_score,
+          confidence = EXCLUDED.confidence,
+          current_price = EXCLUDED.current_price,
           target_price = EXCLUDED.target_price,
-          confidence = EXCLUDED.confidence
+          stop_loss_price = EXCLUDED.stop_loss_price,
+          risk_level = EXCLUDED.risk_level,
+          rationale = EXCLUDED.rationale,
+          estimated_hit_days = EXCLUDED.estimated_hit_days,
+          estimated_hit_date = EXCLUDED.estimated_hit_date,
+          metadata = EXCLUDED.metadata
         RETURNING *
       `;
 
