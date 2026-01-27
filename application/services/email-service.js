@@ -49,6 +49,31 @@ class EmailService {
       }
     }
     
+    // Check for SendGrid (doesn't need SMTP_HOST)
+    if (process.env.EMAIL_PROVIDER === 'sendgrid' && process.env.SENDGRID_API_KEY) {
+      const config = {
+        host: 'smtp.sendgrid.net',
+        port: 587,
+        secure: false,
+        auth: {
+          user: 'apikey',
+          pass: process.env.SENDGRID_API_KEY
+        }
+      };
+
+      this.transporter = nodemailer.createTransport(config);
+
+      this.transporter.verify((error, success) => {
+        if (error) {
+          logger.error('SendGrid email configuration error:', error);
+          this.useConsoleFallback = true;
+        } else {
+          logger.info('Email service ready to send messages via SendGrid');
+        }
+      });
+      return;
+    }
+
     // Fallback to SMTP if SES fails or not configured
     if (process.env.SMTP_HOST) {
       const config = {
@@ -60,21 +85,14 @@ class EmailService {
           pass: process.env.SMTP_PASSWORD
         }
       };
-      
-      // Handle different email providers
+
+      // Handle Gmail provider
       if (process.env.EMAIL_PROVIDER === 'gmail') {
         config.service = 'gmail';
-      } else if (process.env.EMAIL_PROVIDER === 'sendgrid') {
-        config.host = 'smtp.sendgrid.net';
-        config.port = 587;
-        config.auth = {
-          user: 'apikey',
-          pass: process.env.SENDGRID_API_KEY
-        };
       }
-      
-      this.transporter = nodemailer.createTransporter(config);
-      
+
+      this.transporter = nodemailer.createTransport(config);
+
       // Verify connection
       this.transporter.verify((error, success) => {
         if (error) {
