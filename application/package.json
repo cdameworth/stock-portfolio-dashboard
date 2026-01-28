@@ -70,6 +70,7 @@
     "morgan": "^1.10.0",
     "newrelic": "^10.5.0",
     "node-cache": "^5.1.2",
+    "nodemailer": "^7.0.13",
     "pg": "^8.11.3",
     "postcss-cli": "^11.0.1",
     "prom-client": "^15.1.0",
