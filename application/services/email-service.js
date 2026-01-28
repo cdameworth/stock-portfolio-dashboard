@@ -3,8 +3,15 @@
  */
 
 const nodemailer = require('nodemailer');
-const aws = require('@aws-sdk/client-ses');
 const winston = require('winston');
+
+// AWS SES is optional - only loaded if configured
+let aws = null;
+try {
+  aws = require('@aws-sdk/client-ses');
+} catch (e) {
+  // @aws-sdk/client-ses not installed — SES unavailable
+}
 
 const logger = winston.createLogger({
   level: 'info',
@@ -27,8 +34,8 @@ class EmailService {
   }
   
   initializeTransporter() {
-    // Try to use AWS SES first
-    if (this.useAwsSes) {
+    // Try to use AWS SES first (requires @aws-sdk/client-ses)
+    if (this.useAwsSes && aws) {
       try {
         this.sesClient = new aws.SESClient({
           region: process.env.AWS_REGION || 'us-east-1'
