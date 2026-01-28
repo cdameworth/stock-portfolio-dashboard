@@ -237,7 +237,7 @@ class AuthService extends BaseService {
       const { rows } = await this.pool.query(
         `INSERT INTO users (id, email, password_hash, plan, verification_token)
          VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, email, plan, verified, is_admin, created_at`,
+         RETURNING id, email, plan, verified, is_admin, verification_token, created_at`,
         [userId, email.toLowerCase(), passwordHash, plan, verificationToken]
       );
       
@@ -330,6 +330,69 @@ class AuthService extends BaseService {
       },
       token
     };
+  }
+
+  /**
+   * Verify a user's email using verification token
+   */
+  async verifyEmail(token) {
+    await this.init();
+
+    if (!this.pool) {
+      const user = Object.values(this.inMemory.users).find(u => u.verification_token === token);
+      if (!user) throw new Error('Invalid or expired verification token');
+      user.verified = true;
+      user.verification_token = null;
+      return user;
+    }
+
+    const { rows } = await this.pool.query(
+      `UPDATE users SET verified = true, verification_token = NULL, updated_at = now()
+       WHERE verification_token = $1
+       RETURNING id, email, plan, verified, is_admin`,
+      [token]
+    );
+
+    if (rows.length === 0) {
+      throw new Error('Invalid or expired verification token');
+    }
+
+    return rows[0];
+  }
+
+  /**
+   * Get verification token for a user by email (for resend)
+   */
+  async getVerificationToken(email) {
+    await this.init();
+
+    if (!this.pool) {
+      const user = this.inMemory.users[email.toLowerCase()];
+      if (!user) throw new Error('User not found');
+      if (user.verified) throw new Error('Email already verified');
+      return { email: user.email, verification_token: user.verification_token, name: user.name };
+    }
+
+    const { rows } = await this.pool.query(
+      'SELECT email, verification_token FROM users WHERE email = $1 AND verified = false',
+      [email.toLowerCase()]
+    );
+
+    if (rows.length === 0) {
+      throw new Error('User not found or already verified');
+    }
+
+    // Generate new token if current one is null
+    if (!rows[0].verification_token) {
+      const newToken = require('uuid').v4();
+      await this.pool.query(
+        'UPDATE users SET verification_token = $1 WHERE email = $2',
+        [newToken, email.toLowerCase()]
+      );
+      return { email: rows[0].email, verification_token: newToken };
+    }
+
+    return rows[0];
   }
 
   /**

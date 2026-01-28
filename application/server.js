@@ -25,7 +25,12 @@ console.log('Environment variables loaded:', {
   DB_HOST: process.env.DB_HOST ? 'set' : 'not set',
   BRANCA_SECRET: process.env.BRANCA_SECRET ? 'set' : 'not set',
   STOCK_API_KEY: process.env.STOCK_API_KEY ? 'set' : 'not set',
-  REDIS_URL: process.env.REDIS_URL ? 'set' : 'not set'
+  REDIS_URL: process.env.REDIS_URL ? 'set' : 'not set',
+  EMAIL_PROVIDER: process.env.EMAIL_PROVIDER || 'not set',
+  SENDGRID_API_KEY: process.env.SENDGRID_API_KEY ? 'set' : 'not set',
+  SMTP_HOST: process.env.SMTP_HOST || 'not set',
+  EMAIL_FROM: process.env.EMAIL_FROM || 'not set',
+  BASE_URL: process.env.BASE_URL || 'not set'
 });
 
 // Import services
@@ -38,6 +43,7 @@ const DatabaseService = require('./services/database-service');
 const RecommendationSyncService = require('./services/recommendation-sync-service');
 const { getMarketDataCacheService } = require('./services/market-data-cache-service');
 const AdminService = require('./services/admin-service');
+const EmailService = require('./services/email-service');
 // Import business metrics
 const { businessMetrics } = require('./business-metrics');
 // Import admin middleware
@@ -131,6 +137,12 @@ const adminService = new AdminService({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD
 });
+
+// Initialize email service
+const emailService = new EmailService();
+// emailServiceReady is true if a transporter was created (verify callback may still be pending)
+app.locals.emailServiceReady = !!emailService.transporter && !emailService.useConsoleFallback;
+logger.info(`Email service initialized: transporter=${!!emailService.transporter}, consoleFallback=${!!emailService.useConsoleFallback}`);
 
 // Initialize Redis client for caching (optional - falls back to node-cache if unavailable)
 const NodeCache = require('node-cache');
@@ -456,12 +468,17 @@ app.post('/api/auth/register', async (req, res) => {
     const { email, password } = req.body;
     const user = await authService.registerUser({ email, password });
 
-    // Send verification email
-    try {
-      await authService.sendVerificationEmail(user.email, user.verification_token);
-    } catch (emailError) {
-      logger.warn('Failed to send verification email:', emailError);
-      // Continue with registration even if email fails
+    // Send verification email if email service is configured
+    if (app.locals.emailServiceReady && user.verification_token) {
+      try {
+        await emailService.sendVerificationEmail(user.email, user.verification_token);
+        logger.info(`Verification email sent to ${user.email}`);
+      } catch (emailError) {
+        logger.warn('Failed to send verification email:', emailError);
+        // Continue with registration even if email fails
+      }
+    } else {
+      logger.info(`Email service not ready — skipping verification email for ${user.email}`);
     }
 
     metricsService.incrementCounter('user_registrations_total');
@@ -509,7 +526,11 @@ app.get('/api/auth/verify-email', async (req, res) => {
 app.post('/api/auth/resend-verification', async (req, res) => {
   try {
     const { email } = req.body;
-    await authService.resendVerificationEmail(email);
+    if (!app.locals.emailServiceReady) {
+      return res.status(503).json({ error: 'Email service is not configured' });
+    }
+    const userData = await authService.getVerificationToken(email);
+    await emailService.sendVerificationEmail(userData.email, userData.verification_token);
     res.json({ message: 'Verification email sent' });
   } catch (error) {
     logger.error('Resend verification error:', error);
@@ -523,13 +544,18 @@ app.post('/api/auth/login', async (req, res) => {
     const { email, password } = req.body;
     const result = await authService.loginUser({ email, password });
 
-    // Check if email is verified
-    if (!result.user.verified) {
-      return res.status(403).json({
-        error: 'Please verify your email before logging in',
-        code: 'EMAIL_NOT_VERIFIED',
-        email: result.user.email
-      });
+    // Check if email is verified (skip for admin users)
+    if (!result.user.verified && !result.user.is_admin) {
+      // Only enforce if email service is actually configured
+      if (app.locals.emailServiceReady) {
+        return res.status(403).json({
+          error: 'Please verify your email before logging in',
+          code: 'EMAIL_NOT_VERIFIED',
+          email: result.user.email
+        });
+      }
+      // Email service not configured — allow login but note unverified status
+      logger.warn(`User ${result.user.email} logged in without email verification (email service not configured)`);
     }
 
     metricsService.incrementCounter('user_logins_total');
